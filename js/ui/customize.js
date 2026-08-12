@@ -28,15 +28,15 @@ export function renderCustBody(){
  if(custTab==='ball'){
   const c=CFG.ball;
   h+=`<h3>PRESETS</h3><div class="swatches">`+
-   [{n:'Black',v:{color:'#099',rough:.14,metal:.25,clearcoat:1,glow:0,pattern:'none'}},
+   [{n:'Black',v:{color:'rgb(252, 116, 4)',rough:.14,metal:.25,clearcoat:1,glow:0,pattern:'none'}},
     {n:'Chrome',v:{color:'#ffffff',rough:.06,metal:1,clearcoat:1,glow:0,pattern:'none'}},
-    {n:'Neon',v:{color:'#00eaff',rough:.2,metal:.1,clearcoat:1,glow:2,pattern:'none'}},
+    {n:'Neon',v:{color:'#28c7d6',rough:.2,metal:.1,clearcoat:1,glow:2,pattern:'none'}},
     {n:'Carbon',v:{color:'#0c0c10',rough:.5,metal:.6,clearcoat:.6,glow:0,pattern:'rings'}},
     {n:'Glass',v:{color:'#f7f702',rough:.02,metal:0,clearcoat:1,glow:.4,pattern:'none'}},
     {n:'Marble',v:{color:'#02f53e',rough:.25,metal:0,clearcoat:.8,glow:0,pattern:'marble'}},
-    {n:'Galaxy',v:{color:'#2b1b6b',rough:.3,metal:.3,clearcoat:1,glow:.8,pattern:'galaxy'}},
+    {n:'Galaxy',v:{color:'#11be81',rough:.3,metal:.3,clearcoat:1,glow:.8,pattern:'galaxy'}},
     {n:'Holo',v:{color:'#b44bff',rough:.05,metal:.9,clearcoat:1,glow:1.2,pattern:'swirl'}},
-    {n:'Retro',v:{color:'#f0e6d0',rough:.4,metal:0,clearcoat:.5,glow:0,pattern:'retro'}},
+    {n:'Retro',v:{color:'#5427d2',rough:.4,metal:0,clearcoat:.5,glow:0,pattern:'retro'}},
 {n:'Floop',v:{color:'#e81111',rough:c.rough,metal:c.metal,clearcoat:c.clearcoat,glow:c.glow,pattern:c.pattern}}
    ].map(p=>`<div class="sw" title="${p.n}" data-ballpreset='${JSON.stringify(p.v)}' style="background:${p.v.color}"></div>`).join('')+`</div>`;
   h+=`<h3>COLOR</h3><div class="swatches">`+BALL_SWATCH.map(x=>`<div class="sw" data-ballcolor="${x}" style="background:${x}"></div>`).join('')+
