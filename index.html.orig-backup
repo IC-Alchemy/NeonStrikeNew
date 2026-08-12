@@ -1,0 +1,1588 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>NEON STRIKE — Bowling</title>
+<!-- Orbitron supplies the futuristic headings; Rajdhani keeps the controls readable. -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/orbitron@5/index.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/rajdhani@5/index.css">
+<link rel="stylesheet" href="css/style.css">
+<style>
+/* Shared colors are CSS variables so the customization screen can recolor the UI. */
+:root{ --neon:#00eaff; --neon2:#ff2bd6; --bg:rgba(4,6,12,.82); }
+/* Remove browser defaults and make the canvas fill the viewport. */
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:'Rajdhani',sans-serif;color:#cfe9f2;user-select:none}
+#scene{position:fixed;inset:0}
+canvas{display:block;touch-action:none}
+/* The vignette is a non-interactive layer that keeps attention on the lane. */
+#vignette{position:fixed;inset:0;pointer-events:none;z-index:5;
+ background:radial-gradient(ellipse at 50% 45%,transparent 55%,rgba(0,0,5,.55) 100%)}
+/* Menu-like screens share the same full-screen fade and hidden state. */
+.screen{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
+ background:radial-gradient(ellipse at 50% 110%,rgba(10,16,30,.55),rgba(0,0,0,.86) 70%);
+ transition:opacity .45s ease, visibility .45s;z-index:30;overflow-y:auto;padding:24px}
+.screen.hidden{opacity:0;visibility:hidden;pointer-events:none}
+h1.logo{font-family:'Orbitron';font-size:clamp(30px,6.5vw,58px);letter-spacing:.14em;color:#fff;
+ text-shadow:0 0 8px var(--neon),0 0 28px var(--neon),0 0 70px var(--neon);margin-bottom:4px;text-align:center}
+.sub{font-family:'Orbitron';font-size:11px;letter-spacing:.5em;color:var(--neon2);text-shadow:0 0 12px var(--neon2);margin-bottom:34px}
+/* Buttons are divs as well as actual buttons because the original menu uses click targets. */
+.btn{font-family:'Orbitron';font-size:14px;letter-spacing:.25em;color:#dffcff;background:rgba(0,20,28,.5);
+ border:1px solid var(--neon);padding:13px 38px;margin:6px;cursor:pointer;min-width:250px;text-align:center;
+ box-shadow:0 0 12px rgba(0,234,255,.18), inset 0 0 14px rgba(0,234,255,.08);transition:all .18s;border-radius:3px}
+.btn:hover{background:rgba(0,234,255,.14);box-shadow:0 0 24px rgba(0,234,255,.5), inset 0 0 20px rgba(0,234,255,.18);transform:translateY(-1px)}
+.btn.pink{border-color:var(--neon2);color:#ffe6fb;box-shadow:0 0 12px rgba(255,43,214,.18)}
+.btn.pink:hover{background:rgba(255,43,214,.14);box-shadow:0 0 24px rgba(255,43,214,.5)}
+.btn.small{min-width:0;padding:8px 18px;font-size:11px}
+.modes{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-bottom:16px}
+.modes .btn{min-width:150px}
+/* Panels contain settings and customization controls over the rendered scene. */
+.panel{background:var(--bg);border:1px solid rgba(0,234,255,.25);box-shadow:0 0 40px rgba(0,0,0,.7), inset 0 0 60px rgba(0,40,60,.12);
+ padding:22px;border-radius:6px;max-width:920px;width:min(920px,96vw);backdrop-filter:blur(6px)}
+.panel h2{font-family:'Orbitron';font-size:15px;letter-spacing:.3em;color:#fff;text-shadow:0 0 10px var(--neon);margin-bottom:14px}
+.panel h3{font-family:'Orbitron';font-size:11px;letter-spacing:.25em;color:var(--neon);margin:16px 0 8px;text-shadow:0 0 8px var(--neon)}
+.row{display:flex;align-items:center;gap:10px;margin:7px 0;font-size:15px}
+.row label{width:160px;color:#9fd7e6;letter-spacing:.08em;font-size:13px}
+.row input[type=range]{flex:1;accent-color:var(--neon);height:4px}
+.row input[type=text]{flex:1;background:#05080f;border:1px solid rgba(0,234,255,.35);color:#dffcff;padding:7px 10px;font-family:'Rajdhani';font-size:15px;letter-spacing:.1em;border-radius:3px;outline:none}
+.row input[type=color]{width:44px;height:30px;background:none;border:1px solid rgba(255,255,255,.25);border-radius:3px;padding:0;cursor:pointer}
+.row select{background:#05080f;border:1px solid rgba(0,234,255,.35);color:#dffcff;padding:7px 10px;font-family:'Rajdhani';font-size:14px;border-radius:3px;outline:none}
+.row input[type=checkbox]{accent-color:var(--neon);width:18px;height:18px}
+/* Color swatches and tab buttons are generated dynamically by the customization UI. */
+.swatches{display:flex;gap:8px;flex-wrap:wrap}
+.sw{width:26px;height:26px;border-radius:50%;border:2px solid rgba(255,255,255,.25);cursor:pointer;transition:transform .12s}
+.sw:hover{transform:scale(1.2);border-color:#fff}
+.tabs{display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap}
+.tab{font-family:'Orbitron';font-size:11px;letter-spacing:.2em;padding:9px 20px;border:1px solid rgba(0,234,255,.3);color:#8fb9c6;cursor:pointer;background:rgba(0,10,16,.5);border-radius:3px}
+.tab.active{color:#fff;border-color:var(--neon);box-shadow:0 0 14px rgba(0,234,255,.35);background:rgba(0,234,255,.1)}
+.grid2{display:grid;grid-template-columns:300px 1fr;gap:20px}
+/* Collapse the preview and controls into one column on narrow screens. */
+@media(max-width:720px){.grid2{grid-template-columns:1fr}.row label{width:112px}}
+#previewWrap{display:flex;flex-direction:column;align-items:center;gap:8px}
+#preview{width:300px;height:300px;border:1px solid rgba(0,234,255,.25);border-radius:6px;background:#02030a;box-shadow:inset 0 0 40px rgba(0,60,90,.15)}
+#hud{position:fixed;inset:0;z-index:20;pointer-events:none;transition:opacity .5s}
+#hud.faded{opacity:.25}
+#hud.hidden{display:none}
+/* The scorebar is built from frame cells in buildScorebar(). */
+#scorebar{position:absolute;top:8px;left:50%;transform:translateX(-50%);display:flex;border:1px solid rgba(0,234,255,.35);
+ background:rgba(2,6,12,.6);backdrop-filter:blur(4px);box-shadow:0 0 18px rgba(0,234,255,.12);border-radius:4px;overflow:hidden}
+.fcell{width:44px;border-right:1px solid rgba(0,234,255,.2);text-align:center;padding:2px 0 3px}
+.fcell:last-child{border-right:none;width:60px}
+.fcell.cur{background:rgba(0,234,255,.12);box-shadow:inset 0 0 12px rgba(0,234,255,.25)}
+.fcell .fn{font-family:'Orbitron';font-size:8px;color:#5f8b9a;letter-spacing:.1em}
+.fcell .rl{font-size:12px;height:15px;color:#dffcff;letter-spacing:2px;font-weight:600}
+.fcell .sc{font-family:'Orbitron';font-size:12px;color:var(--neon);text-shadow:0 0 8px var(--neon);height:15px}
+@media(max-width:640px){.fcell{width:29px}.fcell:last-child{width:42px}.fcell .rl{font-size:10px;letter-spacing:0}}
+/* These labels provide the current frame, running score, and selected mode. */
+#frameinfo{position:absolute;top:14px;left:18px;font-family:'Orbitron';font-size:12px;letter-spacing:.3em;color:#9fd7e6}
+#bigscore{position:absolute;top:34px;left:18px;font-family:'Orbitron';font-size:38px;color:#fff;text-shadow:0 0 14px var(--neon),0 0 40px var(--neon)}
+#modechip{position:absolute;top:16px;right:70px;font-family:'Orbitron';font-size:10px;letter-spacing:.3em;color:var(--neon2);text-shadow:0 0 10px var(--neon2)}
+#quitBtn{position:absolute;top:10px;right:12px;pointer-events:auto;font-family:'Orbitron';font-size:10px;letter-spacing:.2em;
+ color:#9fd7e6;background:rgba(0,10,16,.6);border:1px solid rgba(0,234,255,.3);padding:8px 12px;cursor:pointer;border-radius:3px}
+#quitBtn:hover{color:#fff;border-color:var(--neon)}
+/* Bottom controls remain interactive even though the HUD wrapper ignores pointer input. */
+#controls{position:absolute;bottom:0;left:0;right:0;display:flex;align-items:flex-end;justify-content:center;gap:26px;
+ padding:14px 18px 20px;pointer-events:none;flex-wrap:wrap}
+.ctl{pointer-events:auto;background:rgba(2,6,12,.6);border:1px solid rgba(0,234,255,.3);padding:10px 16px;border-radius:4px;min-width:190px;backdrop-filter:blur(4px)}
+.ctl label{font-family:'Orbitron';font-size:9px;letter-spacing:.35em;color:#7fb7c7;display:block;margin-bottom:6px}
+.ctl input[type=range]{width:100%;accent-color:var(--neon)}
+#chargeWrap{height:4px;background:rgba(255,255,255,.08);margin-top:6px;border-radius:2px;overflow:hidden}
+#chargeFill{height:100%;width:0%;background:linear-gradient(90deg,var(--neon),var(--neon2));box-shadow:0 0 10px var(--neon)}
+#throwBtn{pointer-events:auto;font-family:'Orbitron';font-size:19px;letter-spacing:.35em;color:#fff;padding:18px 52px;
+ background:rgba(0,20,30,.6);border:2px solid var(--neon);border-radius:5px;cursor:pointer;
+ box-shadow:0 0 22px rgba(0,234,255,.35), inset 0 0 24px rgba(0,234,255,.12);text-shadow:0 0 10px var(--neon);transition:transform .1s}
+#throwBtn:hover{box-shadow:0 0 40px rgba(0,234,255,.7), inset 0 0 30px rgba(0,234,255,.25)}
+#throwBtn:active{transform:scale(.96)}
+#throwBtn.off{opacity:.25;pointer-events:none}
+/* Banner and hint are transient feedback layers above the 3D scene. */
+#banner{position:fixed;top:34%;left:50%;transform:translate(-50%,-50%) scale(.6);z-index:25;font-family:'Orbitron';
+ font-size:clamp(38px,9vw,86px);letter-spacing:.2em;color:#fff;opacity:0;pointer-events:none;white-space:nowrap;
+ text-shadow:0 0 12px var(--neon),0 0 46px var(--neon),0 0 110px var(--neon2)}
+#banner.show{animation:bn 1.7s ease forwards}
+@keyframes bn{0%{opacity:0;transform:translate(-50%,-50%) scale(.5)}14%{opacity:1;transform:translate(-50%,-50%) scale(1.08)}24%{transform:translate(-50%,-50%) scale(1)}78%{opacity:1}100%{opacity:0;transform:translate(-50%,-50%) scale(1.05)}}
+#hint{position:fixed;bottom:118px;left:50%;transform:translateX(-50%);font-size:12px;letter-spacing:.25em;color:#5f8b9a;z-index:19;pointer-events:none;font-family:'Orbitron';text-align:center}
+.signRow{display:flex;gap:8px;align-items:center;margin:8px 0;flex-wrap:wrap}
+.signRow input[type=text]{width:170px}
+.presetRow{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+.presetRow .btn{min-width:0;padding:7px 14px;font-size:10px;margin:0}
+.howlist{font-size:16px;line-height:1.85;color:#bfe3ee;max-width:640px}
+.howlist b{color:var(--neon);letter-spacing:.1em}
+/* Keep long customization forms usable without taking over the whole page. */
+::-webkit-scrollbar{width:8px}::-webkit-scrollbar-thumb{background:rgba(0,234,255,.3);border-radius:4px}
+</style>
+<!-- Pin the Three.js version so the module and addon imports stay compatible. -->
+<script type="importmap">
+{"imports":{
+ "three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+ "three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+}}
+</script>
+</head>
+<body>
+<!-- The renderer owns this background layer; the remaining elements are UI overlays. -->
+<div id="scene"></div>
+<div id="vignette"></div>
+
+<!-- HUD: score, mode, throw controls, and the exit action shown during a game. -->
+<div id="hud" class="hidden">
+  <div id="scorebar"></div>
+  <div id="frameinfo">FRAME 1</div>
+  <div id="bigscore">0</div>
+  <div id="modechip">CLASSIC</div>
+  <button id="quitBtn">✕ MENU</button>
+  <div id="controls">
+    <div class="ctl"><label>POWER</label><input type="range" id="inPower" min="0" max="100" value="68"><div id="chargeWrap"><div id="chargeFill"></div></div></div>
+    <div class="ctl"><label>SPIN ◀ ─ ▶</label><input type="range" id="inSpin" min="-100" max="100" value="0"></div>
+    <button id="throwBtn">THROW</button>
+  </div>
+</div>
+<div id="hint" class="hidden">DRAG TO AIM · HOLD TO CHARGE · RELEASE TO THROW · [A/D] POSITION · [←/→] AIM</div>
+<div id="banner"></div>
+
+<!-- MAIN MENU: entry point for the three game modes and secondary screens. -->
+<div id="menu" class="screen">
+  <h1 class="logo">NEON STRIKE</h1>
+  <div class="sub">MIDNIGHT · NEON · BOWLING</div>
+  <div class="modes">
+    <div class="btn" data-mode="classic">CLASSIC</div>
+    <div class="btn" data-mode="practice">PRACTICE</div>
+    <div class="btn pink" data-mode="chaos">CHAOS</div>
+  </div>
+  <div class="btn" id="btnCustomize">CUSTOMIZE</div>
+  <div class="btn" id="btnSettings">SETTINGS</div>
+  <div class="btn" id="btnHow">HOW TO PLAY</div>
+</div>
+
+<!-- HOW TO PLAY: concise control and scoring reference for first-time players. -->
+<div id="howto" class="screen hidden">
+  <div class="panel">
+    <h2>HOW TO PLAY</h2>
+    <div class="howlist">
+      <b>AIM</b> — drag on the lane, use ← / → keys, or follow the glowing guide line.<br>
+      <b>POSITION</b> — A / D keys shift your starting spot on the approach.<br>
+      <b>POWER</b> — use the slider, scroll wheel, or <b>hold</b> on the lane to charge (it oscillates — release at the right moment).<br>
+      <b>SPIN</b> — the spin slider adds hook. The ball curves more as it travels down-lane.<br>
+      <b>THROW</b> — release your drag, press SPACE, or hit the THROW button.<br>
+      <b>BUMPERS</b> — bouncing bumper gutters are ON by default. Toggle them in Settings → Gameplay.<br>
+      <b>STRIKES</b> — knock down all ten pins on your first throw and the alley rains confetti. 🎉<br><br>
+      Strikes, spares and the 10th-frame bonus are scored by the rules.
+      Everything you customize — ball, pins, costumes, lane, neon signs — is saved automatically.
+    </div>
+    <div style="text-align:center;margin-top:20px"><div class="btn small" id="howBack">BACK</div></div>
+  </div>
+</div>
+
+<!-- SETTINGS: persistent graphics, camera, gameplay, and audio preferences. -->
+<div id="settings" class="screen hidden">
+  <div class="panel">
+    <h2>SETTINGS</h2>
+    <h3>GRAPHICS</h3>
+    <div class="row"><label>QUALITY</label><select id="sQuality"><option value="low">LOW</option><option value="medium">MEDIUM</option><option value="high">HIGH</option><option value="ultra">ULTRA</option></select></div>
+    <div class="row"><label>BLOOM</label><input type="checkbox" id="sBloom"></div>
+    <div class="row"><label>BLOOM STRENGTH</label><input type="range" id="sBloomStr" min="0" max="1.5" step="0.05"></div>
+    <div class="row"><label>SHADOWS</label><input type="checkbox" id="sShadows"></div>
+    <div class="row"><label>FPS LIMIT</label><select id="sFps"><option value="60">60</option><option value="30">30</option></select></div>
+    <div class="row"><label>FIREWORKS</label><input type="checkbox" id="sFireworks"></div>
+    <h3>LIGHTING</h3>
+    <div class="row"><label>EXPOSURE</label><input type="range" id="sExposure" min="0.5" max="2.5" step="0.05"></div>
+    <div class="row"><label>AMBIENT BRIGHTNESS</label><input type="range" id="sAmbient" min="0.2" max="2" step="0.05"></div>
+    <div class="row"><label>RIM LIGHT INTENSITY</label><input type="range" id="sRimLevel" min="0" max="2.5" step="0.05"></div>
+    <div class="row"><label>BLOOM RADIUS</label><input type="range" id="sBloomRadius" min="0" max="1" step="0.05"></div>
+    <div class="row"><label>BLOOM THRESHOLD</label><input type="range" id="sBloomThreshold" min="0" max="1" step="0.05"></div>
+    <div class="row"><label>SHADOW QUALITY</label><select id="sShadowQuality"><option value="low">LOW</option><option value="medium">MEDIUM</option><option value="high">HIGH</option><option value="ultra">ULTRA</option></select></div>
+    <div class="row"><label>ATMOSPHERIC DUST</label><input type="checkbox" id="sDust"></div>
+    <h3>CAMERA</h3>
+    <div class="row"><label>FOLLOW DISTANCE</label><input type="range" id="sFollowDist" min="0.5" max="2" step="0.05"></div>
+    <div class="row"><label>FOLLOW HEIGHT</label><input type="range" id="sFollowHeight" min="0.4" max="2" step="0.05"></div>
+    <div class="row"><label>SMOOTHNESS</label><input type="range" id="sSmooth" min="1" max="10" step="0.5"></div>
+    <div class="row"><label>FIELD OF VIEW</label><input type="range" id="sFov" min="45" max="85" step="1"></div>
+    <div class="row"><label>CAMERA SHAKE</label><input type="checkbox" id="sShake"></div>
+    <div class="row"><label>IMPACT SLOW-MO</label><input type="checkbox" id="sSlowmo"></div>
+    <h3>GAMEPLAY</h3>
+    <div class="row"><label>BUMPER GUTTERS</label><input type="checkbox" id="sBumper"></div>
+    <div class="row"><label>AIM ASSIST</label><input type="checkbox" id="sAim"></div>
+    <div class="row"><label>THROW SENSITIVITY</label><input type="range" id="sSens" min="0.4" max="2" step="0.1"></div>
+    <div class="row"><label>PIN PHYSICS STRENGTH</label><input type="range" id="sPinStr" min="0.5" max="2" step="0.05"></div>
+    <h3>AUDIO</h3>
+    <div class="row"><label>MASTER VOLUME</label><input type="range" id="sMaster" min="0" max="1" step="0.05"></div>
+    <div class="row"><label>SFX VOLUME</label><input type="range" id="sSfx" min="0" max="1" step="0.05"></div>
+    <div class="row"><label>ROLL VOLUME</label><input type="range" id="sRoll" min="0" max="1" step="0.05"></div>
+    <div style="display:flex;gap:10px;margin-top:18px;flex-wrap:wrap">
+      <div class="btn small pink" id="sReset">RESET ALL SAVED DATA</div>
+      <div class="btn small" id="settingsBack">BACK</div>
+    </div>
+  </div>
+</div>
+
+<!-- CUSTOMIZE: the preview canvas and dynamic controls for visual styling. -->
+<div id="customize" class="screen hidden">
+  <div class="panel">
+    <div class="tabs">
+      <div class="tab active" data-tab="ball">BALL</div>
+      <div class="tab" data-tab="pins">PINS</div>
+      <div class="tab" data-tab="lane">LANE</div>
+      <div class="tab" data-tab="env">NEON &amp; SIGNS</div>
+    </div>
+    <div class="grid2">
+      <div id="previewWrap"><canvas id="preview" width="600" height="600"></canvas><div style="font-family:Orbitron;font-size:9px;letter-spacing:.3em;color:#5f8b9a">3D PREVIEW</div></div>
+      <div id="custBody"></div>
+    </div>
+    <div style="text-align:center;margin-top:18px"><div class="btn small" id="custBack">BACK TO MENU</div></div>
+  </div>
+</div>
+
+<!-- GAME OVER: final score and restart/menu actions after the tenth frame. -->
+<div id="over" class="screen hidden">
+  <h1 class="logo" style="font-size:clamp(28px,6vw,52px)">GAME OVER</h1>
+  <div class="sub">FINAL SCORE</div>
+  <div style="font-family:Orbitron;font-size:72px;color:#fff;text-shadow:0 0 20px var(--neon),0 0 60px var(--neon);margin-bottom:30px" id="finalScore">0</div>
+  <div class="btn" id="overAgain">PLAY AGAIN</div>
+  <div class="btn" id="overMenu">MAIN MENU</div>
+</div>
+
+<script type="module">
+// Three.js provides the scene graph; post-processing adds bloom to the neon materials.
+import * as THREE from 'three';
+import {EffectComposer} from 'three/addons/postprocessing/EffectComposer.js';
+import {RenderPass} from 'three/addons/postprocessing/RenderPass.js';
+import {UnrealBloomPass} from 'three/addons/postprocessing/UnrealBloomPass.js';
+import {OutputPass} from 'three/addons/postprocessing/OutputPass.js';
+import {RoomEnvironment} from 'three/addons/environments/RoomEnvironment.js';
+
+/* ================= helpers ================= */
+// Small numeric helpers keep the animation and physics formulas readable below.
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const lerp=(a,b,t)=>a+(b-a)*t;
+const damp=THREE.MathUtils.damp;
+const rnd=(a=1,b)=>b===undefined?Math.random()*a:a+Math.random()*(b-a);
+const pick=a=>a[Math.floor(Math.random()*a.length)];
+const $=s=>document.querySelector(s);
+const NEON_HEX=['#00eaff','#ff2bd6','#b44bff','#2b6bff','#39ff6a','#ff8a2b','#ff2b3d','#ffe72b'];
+const CONFETTI_COLORS=['#ff2bd6','#00eaff','#ffe72b','#39ff6a','#ff8a2b','#b44bff','#ffffff','#ff2b3d'];
+
+/* ================= save / config ================= */
+// A stable key keeps existing player saves, while the envelope leaves room for future migrations.
+const SAVE_KEY='neonstrike_v2',SAVE_VERSION=1;
+// Pin styling is stored per pin, while the other CFG branches hold ball, lane, environment, and settings.
+const defaultPin=()=>({body:'#f4f6f8',stripe:'#ff2bd6',stripes:2,glow:0.35,face:'none',acc:'none'});
+const defaultConfig=()=>({
+ ball:{color:'#14141c',rough:0.14,metal:0.25,clearcoat:1,glow:0.0,pattern:'none',size:1,hook:1,friction:1},
+ pins:{list:Array.from({length:10},defaultPin),sel:0},
+ lane:{wood:'#2a1a0e',gloss:0.8,markings:0.85,fog:0.05,pinLight:1.0},
+ env:{preset:'Cyberpunk',primary:'#00eaff',secondary:'#ff2bd6',brightness:1,anim:'pulse',speed:1,signs:[
+   {text:'BOWLING',color:'#ffe72b',anim:'chase',anchor:0},
+   {text:'NIGHT STRIKE',color:'#ff2bd6',anim:'flicker',anchor:1},
+   {text:'LANE 01',color:'#00eaff',anim:'pulse',anchor:2}]},
+ set:{quality:'high',bloom:true,bloomStr:0.1,shadows:true,fps:60,fireworks:true,
+       exposure:1.25,ambient:1,rimLevel:1,bloomRadius:0.55,bloomThreshold:0.3,shadowQuality:'medium',dust:true,
+       followDist:1,followHeight:1,smooth:5,fov:58,shake:true,slowmo:true,
+       bumper:true,aim:true,sens:1,pinStr:1,master:0.8,sfx:0.9,roll:0.7}
+});
+const CFG=defaultConfig();
+const isRecord=v=>v!==null&&typeof v==='object'&&!Array.isArray(v);
+// Copy only known scalar fields. This makes added defaults forward-compatible and ignores corrupt saved values.
+function copyKnown(target,source){if(!isRecord(source))return;
+ for(const key of Object.keys(target)){const value=source[key],fallback=target[key];
+  if(typeof fallback==='number'&&typeof value==='number'&&Number.isFinite(value))target[key]=value;
+  else if((typeof fallback==='string'||typeof fallback==='boolean')&&typeof value===typeof fallback)target[key]=value;}}
+function savedPin(source){const pin=defaultPin();copyKnown(pin,source);return pin;}
+function savedSign(source){const sign={text:'NEON',color:'#00eaff',anim:'pulse',anchor:0};copyKnown(sign,source);
+ sign.text=sign.text.slice(0,18);sign.anchor=clamp(Math.trunc(sign.anchor),0,5);return sign;}
+// Saving is deliberately best-effort: blocked storage must not stop the game.
+ function save(){try{localStorage.setItem(SAVE_KEY,JSON.stringify({version:SAVE_VERSION,savedAt:Date.now(),config:CFG}));}catch(e){}}
+// Accept legacy raw v2 saves, then merge only validated known fields into the current defaults.
+ function load(){try{const saved=JSON.parse(localStorage.getItem(SAVE_KEY));
+ const s=isRecord(saved?.config)?saved.config:saved;if(!isRecord(s))return;
+ copyKnown(CFG.ball,s.ball);copyKnown(CFG.lane,s.lane);copyKnown(CFG.env,s.env);copyKnown(CFG.set,s.set);
+ if(isRecord(s.pins)){if(Array.isArray(s.pins.list)&&s.pins.list.length===10)CFG.pins.list=s.pins.list.map(savedPin);
+  if(typeof s.pins.sel==='number'&&Number.isFinite(s.pins.sel))CFG.pins.sel=clamp(Math.trunc(s.pins.sel),0,9);}
+ if(Array.isArray(s.env?.signs))CFG.env.signs=s.env.signs.slice(0,5).filter(isRecord).map(savedSign);
+}catch(e){}}
+load();
+
+/* ================= audio ================= */
+// Audio is created lazily because browsers require a user gesture before starting Web Audio.
+const AU={ctx:null,master:null,sfx:null,rollGain:null,noise:null,rollFilter:null,
+ // Build the shared graph and a reusable noise buffer on the first gesture.
+ init(){if(this.ctx)return;try{
+  this.ctx=new (window.AudioContext||window.webkitAudioContext)();
+  this.master=this.ctx.createGain();this.master.gain.value=CFG.set.master;this.master.connect(this.ctx.destination);
+  this.sfx=this.ctx.createGain();this.sfx.gain.value=CFG.set.sfx;this.sfx.connect(this.master);
+  const len=this.ctx.sampleRate*1.5,buf=this.ctx.createBuffer(1,len,this.ctx.sampleRate),d=buf.getChannelData(0);
+  for(let i=0;i<len;i++)d[i]=Math.random()*2-1; this.noise=buf;
+  const src=this.ctx.createBufferSource();src.buffer=buf;src.loop=true;
+  const f=this.ctx.createBiquadFilter();f.type='lowpass';f.frequency.value=200;
+  this.rollGain=this.ctx.createGain();this.rollGain.gain.value=0;
+  src.connect(f);f.connect(this.rollGain);this.rollGain.connect(this.master);src.start();
+  this.rollFilter=f;
+ }catch(e){}},
+  // Short UI confirmation used when navigating menus and tabs.
+  click(){this.tone(1500,0.05,'square',0.12,0);},
+  // Synthesize a pitched sound with an optional frequency slide and delayed start.
+ tone(f,d,type='sine',g=0.2,delay=0,slide=0){if(!this.ctx)return;const t=this.ctx.currentTime+delay;
+  const o=this.ctx.createOscillator(),v=this.ctx.createGain();o.type=type;o.frequency.setValueAtTime(f,t);
+  if(slide)o.frequency.exponentialRampToValueAtTime(Math.max(30,f+slide),t+d);
+  v.gain.setValueAtTime(g,t);v.gain.exponentialRampToValueAtTime(0.0001,t+d);
+  o.connect(v);v.connect(this.sfx);o.start(t);o.stop(t+d+.02);},
+  // Filtered noise supplies impacts, whooshes, and celebratory texture without audio assets.
+  burst(d=0.09,fq=1200,g=0.35,delay=0){if(!this.ctx)return;const t=this.ctx.currentTime+delay;
+  const s=this.ctx.createBufferSource();s.buffer=this.noise;s.playbackRate.value=rnd(0.7,1.4);
+  const f=this.ctx.createBiquadFilter();f.type='bandpass';f.frequency.value=fq;f.Q.value=1.2;
+  const v=this.ctx.createGain();v.gain.setValueAtTime(g,t);v.gain.exponentialRampToValueAtTime(0.0001,t+d);
+  s.connect(f);f.connect(v);v.connect(this.sfx);s.start(t);s.stop(t+d+.05);},
+  // Impact strength maps collision speed to a restrained sound level.
+  impact(st){const s=clamp(st/8,0.12,1);this.burst(rnd(.05,.1),rnd(700,2200),.5*s);this.tone(rnd(80,140),.14,'sine',.3*s,0,-40);},
+ bonk(){this.tone(rnd(180,240),.12,'square',.22,0,-90);this.burst(.06,900,.25);},
+ strike(){[523,659,784,1046,1318].forEach((f,i)=>this.tone(f,.22,'square',.14,i*.08));this.burst(.4,3000,.2,.1);
+  this.burst(.15,4200,.25,.05);this.burst(.18,3600,.22,.18);},
+ spare(){[523,784,1046].forEach((f,i)=>this.tone(f,.2,'square',.13,i*.09));},
+ gutter(){this.tone(300,.5,'sawtooth',.14,0,-240);},
+ whoosh(){this.burst(.35,rnd(500,800),.22);},
+  // The continuous rolling bed follows speed, but fades quickly when the ball stops.
+  setRoll(speed){if(!this.rollGain)return;const v=clamp(speed/12,0,1)*CFG.set.roll;
+  this.rollGain.gain.setTargetAtTime(state==='rolling'?v*0.4:0,this.ctx.currentTime,.08);
+  this.rollFilter.frequency.setTargetAtTime(140+speed*130,this.ctx.currentTime,.08);}};
+
+/* ================= three setup ================= */
+// Scene references are initialized once, then shared by gameplay, preview, and UI code.
+let renderer,scene,camera,composer,bloomPass,clock;
+// World units are meters; keeping lane and pin dimensions together makes collision bounds consistent.
+const LANE_W=1.05,HALF=LANE_W/2,LANE_L=18,PIT_Z=18.25,PIN_Z0=16.35,PIN_SP=0.3048,BALL_R=0.108;
+// pin containment bounds (invisible deck walls — pins can never leave the deck)
+const DECK_X=0.72,DECK_ZB=PIT_Z-0.12,DECK_ZF=14.7;
+const staticMeshes=[];
+// Static meshes are frozen after construction to reduce per-frame matrix work.
+ function freeze(m){m.updateMatrix();m.matrixAutoUpdate=false;staticMeshes.push(m);return m;}
+// Create the main renderer, post-processing chain, camera, and resize handler.
+ function initThree(){
+ THREE.ColorManagement.enabled=true;
+ renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance'});
+ renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.25;
+ renderer.outputColorSpace=THREE.SRGBColorSpace;
+ renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+ $('#scene').appendChild(renderer.domElement);
+ scene=new THREE.Scene();scene.background=new THREE.Color(0x010208);
+ camera=new THREE.PerspectiveCamera(CFG.set.fov,innerWidth/innerHeight,0.05,80);
+ camera.position.set(0,1.6,-2.4);
+ const pm=new THREE.PMREMGenerator(renderer);scene.environment=pm.fromScene(new RoomEnvironment(),0.06).texture;
+ composer=new EffectComposer(renderer);composer.addPass(new RenderPass(scene,camera));
+ bloomPass=new UnrealBloomPass(new THREE.Vector2(innerWidth,innerHeight),CFG.set.bloomStr,0.55,0.3);
+ composer.addPass(bloomPass);composer.addPass(new OutputPass());
+ clock=new THREE.Clock();
+ addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth,innerHeight);composer.setSize(innerWidth,innerHeight);});
+}
+initThree();
+
+/* ================= lights ================= */
+// A low ambient base, warm pin spotlight, cool approach light, and colored rims define the alley.
+const amb=new THREE.AmbientLight(0x2a3550,0.28);scene.add(amb);
+const hemi=new THREE.HemisphereLight(0x2c3a55,0x07070c,0.22);scene.add(hemi);
+const dirL=new THREE.DirectionalLight(0x7f94c0,0.18);dirL.position.set(3,7,3);scene.add(dirL);
+const pinSpot=new THREE.SpotLight(0xffe9c8,55,24,0.62,0.6,1.7);
+pinSpot.position.set(0,4.8,14.2);pinSpot.target.position.set(0,0,PIN_Z0);
+pinSpot.castShadow=true;pinSpot.shadow.mapSize.set(1024,1024);pinSpot.shadow.bias=-0.0004;pinSpot.shadow.radius=6;
+scene.add(pinSpot,pinSpot.target);
+const approachSpot=new THREE.SpotLight(0x9db0d0,10,15,0.8,0.9,1.9);approachSpot.position.set(0,4.2,1.6);approachSpot.target.position.set(0,0,3);scene.add(approachSpot,approachSpot.target);
+const ballLight=new THREE.PointLight(0x00eaff,2,3.4);scene.add(ballLight);
+const rimL=new THREE.PointLight(0xff2bd6,12,7,1.8);rimL.position.set(-1.7,1.2,PIN_Z0+0.6);scene.add(rimL);
+const rimR=new THREE.PointLight(0x00eaff,12,7,1.8);rimR.position.set(1.7,1.2,PIN_Z0+0.6);scene.add(rimR);
+
+/* ================= environment ================= */
+// Materials in this registry are recolored every frame for the selected neon animation.
+const neonMats=[];
+// Register a non-tone-mapped material so its color can bloom consistently with the rest of the scene.
+ function neonMat(hex,key='p'){const m=new THREE.MeshBasicMaterial({color:hex,toneMapped:false});
+ neonMats.push({mat:m,base:new THREE.Color(hex),key});return m;}
+ let laneMesh,laneMat,markGroup,signMeshes=[],dustPts,lightCones=[],bumperFlash=[0,0],bumperMats=[];
+// Generate a procedural wood texture instead of loading an external image.
+ function laneTexture(){
+ const c=document.createElement('canvas');c.width=512;c.height=1024;const x=c.getContext('2d');
+ const base=new THREE.Color(CFG.lane.wood);
+ x.fillStyle='#'+base.getHexString();x.fillRect(0,0,512,1024);
+ const boards=9,bw=512/boards;
+ for(let i=0;i<boards;i++){
+  const v=rnd(-0.045,0.045);
+  const col=base.clone().offsetHSL(rnd(-0.008,0.008),rnd(-0.05,0.05),v);
+  x.fillStyle='#'+col.getHexString();x.fillRect(i*bw,0,bw-2,1024);
+  x.fillStyle='rgba(0,0,0,0.35)';x.fillRect(i*bw+bw-2,0,2,1024);
+  for(let g=0;g<7;g++){x.strokeStyle='rgba(0,0,0,'+rnd(0.04,0.1)+')';x.lineWidth=rnd(1,2.2);
+   const gx=i*bw+rnd(4,bw-6);x.beginPath();x.moveTo(gx,0);
+   for(let y=0;y<=1024;y+=128)x.lineTo(gx+rnd(-4,4),y);x.stroke();}}
+ const gr=x.createLinearGradient(0,0,0,1024);gr.addColorStop(0,'rgba(255,255,255,0.05)');gr.addColorStop(0.5,'rgba(255,255,255,0)');gr.addColorStop(1,'rgba(255,255,255,0.06)');
+ x.fillStyle=gr;x.fillRect(0,0,512,1024);
+ const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;
+ t.anisotropy=renderer.capabilities.getMaxAnisotropy();t.wrapS=t.wrapT=THREE.RepeatWrapping;return t;}
+ // Create the soft radial sprite shared by dust, particles, and the ball trail.
+ function glowSpriteTex(){
+ const c=document.createElement('canvas');c.width=64;c.height=64;const x=c.getContext('2d');
+ const g=x.createRadialGradient(32,32,2,32,32,30);g.addColorStop(0,'rgba(255,255,255,1)');g.addColorStop(0.35,'rgba(255,255,255,0.5)');g.addColorStop(1,'rgba(255,255,255,0)');
+ x.fillStyle=g;x.fillRect(0,0,64,64);const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;return t;}
+ let softDotTex;
+// Build the floor, lane, bumpers, pit, walls, ceiling lights, dust, and fixed signs.
+ function buildEnvironment(){
+ softDotTex=glowSpriteTex();
+ const floor=new THREE.Mesh(new THREE.PlaneGeometry(70,70),new THREE.MeshStandardMaterial({color:0x06060a,roughness:.9,metalness:.15}));
+ floor.rotation.x=-Math.PI/2;floor.position.y=-0.06;floor.receiveShadow=true;scene.add(floor);
+ laneMat=new THREE.MeshPhysicalMaterial({map:laneTexture(),roughness:.22,metalness:.05,clearcoat:.85,clearcoatRoughness:.22,envMapIntensity:1.2});
+ laneMesh=new THREE.Mesh(new THREE.BoxGeometry(LANE_W,0.08,LANE_L+1.6),laneMat);
+ laneMesh.position.set(0,-0.04,(LANE_L+1.6)/2-0.4);laneMesh.receiveShadow=true;scene.add(laneMesh);
+ const gMat=new THREE.MeshStandardMaterial({color:0x0a0a10,roughness:.3,metalness:.45,envMapIntensity:.9});
+ [-1,1].forEach(s=>{
+  const g=new THREE.Mesh(new THREE.BoxGeometry(0.22,0.06,LANE_L+1.2),gMat);
+  g.position.set(s*(HALF+0.12),-0.055,LANE_L/2);scene.add(freeze(g));
+  const strip=new THREE.Mesh(new THREE.CylinderGeometry(0.011,0.011,LANE_L,8),neonMat(CFG.env.primary,'p'));
+  strip.rotation.x=Math.PI/2;strip.position.set(s*(HALF+0.235),0.005,LANE_L/2);scene.add(freeze(strip));});
+ [-1,1].forEach((s,i)=>{
+  const m=neonMat(CFG.env.primary,'p');
+  bumperMats.push({mat:m,base:new THREE.Color(CFG.env.primary),side:i});
+  neonMats.push({mat:m,base:new THREE.Color(CFG.env.primary),key:'p',isBumper:i});
+  const tube=new THREE.Mesh(new THREE.CylinderGeometry(0.022,0.022,LANE_L+0.4,10),m);
+  tube.rotation.x=Math.PI/2;tube.position.set(s*(HALF+0.012),0.03,LANE_L/2);scene.add(freeze(tube));
+  const wall=new THREE.Mesh(new THREE.BoxGeometry(0.02,0.09,LANE_L+0.4),new THREE.MeshStandardMaterial({color:0x0d0d14,roughness:.4,metalness:.5}));
+  wall.position.set(s*(HALF+0.028),0.045,LANE_L/2);scene.add(freeze(wall));});
+ markGroup=new THREE.Group();
+ const mMat=new THREE.MeshBasicMaterial({color:0xbfd8e2,transparent:true,opacity:.5,toneMapped:false});
+ const foul=new THREE.Mesh(new THREE.BoxGeometry(LANE_W,0.004,0.025),new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:.85,toneMapped:false}));
+ foul.position.set(0,0.004,0);markGroup.add(foul);
+ const triShape=new THREE.Shape();triShape.moveTo(0,0.055);triShape.lineTo(-0.034,-0.032);triShape.lineTo(0.034,-0.032);triShape.closePath();
+ const triGeo=new THREE.ShapeGeometry(triShape);
+ [3.6,4.8,6,7.2,8.4].forEach((z,i)=>{const t=new THREE.Mesh(triGeo,mMat);t.rotation.x=-Math.PI/2;t.position.set((i-2)*0.14,0.004,z);markGroup.add(t);});
+ [2.2,4.4].forEach(z=>{[-0.28,0,0.28].forEach(px=>{const d=new THREE.Mesh(new THREE.CircleGeometry(0.017,14),mMat);d.rotation.x=-Math.PI/2;d.position.set(px,0.004,z);markGroup.add(d);});});
+ scene.add(markGroup);markGroup.children.forEach(freeze);
+ const ps=new THREE.Mesh(new THREE.BoxGeometry(3.6,2.5,0.9),new THREE.MeshStandardMaterial({color:0x0c0c13,roughness:.55,metalness:.35}));
+ ps.position.set(0,1.15,PIT_Z+1.15);scene.add(freeze(ps));
+ // deck containment walls (subtle dark panels behind/around the pins — visual hint of the bounds)
+ const wallMat=new THREE.MeshStandardMaterial({color:0x0b0b12,roughness:.6,metalness:.3});
+ const backBoard=new THREE.Mesh(new THREE.BoxGeometry(DECK_X*2+0.14,0.32,0.04),wallMat);
+ backBoard.position.set(0,0.16,DECK_ZB+0.05);scene.add(freeze(backBoard));
+ [-1,1].forEach(s=>{const sw=new THREE.Mesh(new THREE.BoxGeometry(0.04,0.32,DECK_ZB-DECK_ZF+0.2),wallMat);
+  sw.position.set(s*(DECK_X+0.05),0.16,(DECK_ZB+DECK_ZF)/2);scene.add(freeze(sw));});
+ [[0.55],[1.75]].forEach(([y])=>{
+  const n=new THREE.Mesh(new THREE.CylinderGeometry(0.014,0.014,2.7,8),neonMat(CFG.env.secondary,'s'));
+  n.rotation.z=Math.PI/2;n.position.set(0,y,PIT_Z+0.68);scene.add(freeze(n));});
+ const pit=new THREE.Mesh(new THREE.PlaneGeometry(LANE_W+0.44,0.5),new THREE.MeshBasicMaterial({color:0x000000}));
+ pit.position.set(0,0.18,PIT_Z+0.02);pit.rotation.y=Math.PI;scene.add(freeze(pit));
+ const bw=new THREE.Mesh(new THREE.PlaneGeometry(30,8),new THREE.MeshStandardMaterial({color:0x07070c,roughness:.9}));
+ bw.position.set(0,3.5,21.5);bw.rotation.y=Math.PI;scene.add(freeze(bw));
+ [-1,1].forEach(s=>{const w=new THREE.Mesh(new THREE.PlaneGeometry(40,8),new THREE.MeshStandardMaterial({color:0x060609,roughness:.95}));
+  w.position.set(s*7,3.5,10);w.rotation.y=s>0?-Math.PI/2:Math.PI/2;scene.add(freeze(w));
+  for(let i=0;i<5;i++){const st=new THREE.Mesh(new THREE.CylinderGeometry(0.012,0.012,6.4,8),neonMat(CFG.env.secondary,'s'));
+   st.rotation.x=Math.PI/2;st.position.set(s*6.92,1.1+i*1.05,4+i*4);scene.add(freeze(st));}});
+ const ceil=new THREE.Mesh(new THREE.PlaneGeometry(16,40),new THREE.MeshStandardMaterial({color:0x050508,roughness:.95}));
+ ceil.rotation.x=Math.PI/2;ceil.position.set(0,4.9,9);scene.add(freeze(ceil));
+ const bulbCol=new THREE.Color(0xffe9c4).multiplyScalar(0.35);
+ const coneMat=new THREE.MeshBasicMaterial({color:0xffe9c4,transparent:true,opacity:0.018,blending:THREE.AdditiveBlending,depthWrite:false,side:THREE.DoubleSide,toneMapped:false});
+ for(let i=0;i<6;i++){
+  const z=1.5+i*3.4;
+  const fixture=new THREE.Mesh(new THREE.CylinderGeometry(0.16,0.24,0.14,14),new THREE.MeshStandardMaterial({color:0x111118,roughness:.4,metalness:.7}));
+  fixture.position.set(0,4.6,z);scene.add(freeze(fixture));
+  const bulb=new THREE.Mesh(new THREE.SphereGeometry(0.09,12,10),new THREE.MeshBasicMaterial({color:bulbCol,toneMapped:false}));
+  bulb.position.set(0,4.5,z);scene.add(freeze(bulb));
+  const tube=new THREE.Mesh(new THREE.CylinderGeometry(0.012,0.012,3.2,8),neonMat(CFG.env.primary,'p'));
+  tube.rotation.z=Math.PI/2;tube.position.set(0,4.42,z);scene.add(freeze(tube));
+  const cone=new THREE.Mesh(new THREE.ConeGeometry(1.15,4.3,20,1,true),coneMat.clone());
+  cone.position.set(0,2.35,z);scene.add(cone);lightCones.push(cone);freeze(cone);}
+ const rail=new THREE.Mesh(new THREE.CylinderGeometry(0.05,0.05,LANE_L,12),new THREE.MeshStandardMaterial({color:0x14141c,roughness:.25,metalness:.8,envMapIntensity:1.3}));
+ rail.rotation.x=Math.PI/2;rail.position.set(HALF+0.55,0.35,LANE_L/2);scene.add(freeze(rail));
+ const railGlow=new THREE.Mesh(new THREE.CylinderGeometry(0.01,0.01,LANE_L,8),neonMat(CFG.env.secondary,'s'));
+ railGlow.rotation.x=Math.PI/2;railGlow.position.set(HALF+0.55,0.43,LANE_L/2);scene.add(freeze(railGlow));
+ const dome=new THREE.Mesh(new THREE.SphereGeometry(0.22,18,12,0,Math.PI*2,0,Math.PI/2),new THREE.MeshStandardMaterial({color:0x181820,roughness:.2,metalness:.7,envMapIntensity:1.4}));
+ dome.position.set(HALF+0.55,0.1,0.2);scene.add(freeze(dome));
+ const n=120,pos=new Float32Array(n*3);
+ for(let i=0;i<n;i++){pos[i*3]=rnd(-4,4);pos[i*3+1]=rnd(0.1,3.6);pos[i*3+2]=rnd(0,20);}
+ const dg=new THREE.BufferGeometry();dg.setAttribute('position',new THREE.BufferAttribute(pos,3));
+ dustPts=new THREE.Points(dg,new THREE.PointsMaterial({map:softDotTex,color:0x99ccff,size:0.03,transparent:true,opacity:.4,depthWrite:false,blending:THREE.AdditiveBlending}));
+ scene.add(dustPts);
+ buildFixedSigns();
+ buildSigns();}
+
+/* ================= neon signs ================= */
+// Each anchor stores a world position and orientation for user-created sign meshes.
+const SIGN_ANCHORS=[
+ {p:[0,3.1,21.4],r:[0,Math.PI,0]},{p:[-3.4,2.3,21.4],r:[0,Math.PI,0]},{p:[3.4,2.3,21.4],r:[0,Math.PI,0]},
+ {p:[-6.9,2.6,7],r:[0,Math.PI/2,0]},{p:[6.9,2.6,13],r:[0,-Math.PI/2,0]},{p:[0,3.6,11],r:[0.5,Math.PI,0]}];
+// Render glowing text to a canvas so signs remain sharp and inexpensive in the 3D scene.
+ function signTexture(text,color){
+ const c=document.createElement('canvas');c.width=1024;c.height=220;const x=c.getContext('2d');
+ x.clearRect(0,0,1024,220);x.font='bold 104px Orbitron, monospace';x.textAlign='center';x.textBaseline='middle';
+ x.shadowColor=color;x.shadowBlur=48;x.fillStyle=color;x.fillText(text,512,116);
+ x.shadowBlur=18;x.fillText(text,512,116);
+ x.shadowBlur=0;x.fillStyle='#ffffff';x.globalAlpha=.88;x.fillText(text,512,116);
+ const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;return t;}
+function makeSignMesh(text,color,w=2.6,h=0.56){
+ const m=new THREE.MeshBasicMaterial({map:signTexture(text,color),transparent:true,toneMapped:false,depthWrite:false,side:THREE.DoubleSide});
+ return new THREE.Mesh(new THREE.PlaneGeometry(w,h),m);}
+// Fixed signs are part of the alley set and do not appear in the editable sign list.
+ function buildFixedSigns(){
+  [['L',-6.9,Math.PI/2],['R',6.9,-Math.PI/2]].forEach(([side,x,ry])=>{
+  const mesh=makeSignMesh("EMMA'S BOWLING ALLEY",'#ff2bd6',7.4,1.0);
+  mesh.position.set(x,2.7,9.5);mesh.rotation.y=ry;scene.add(mesh);
+  const fm=neonMat('#ff2bd6','s');
+  const top=new THREE.Mesh(new THREE.CylinderGeometry(0.014,0.014,7.6,8),fm);
+  top.rotation.x=Math.PI/2;top.position.set(x+(side==='L'?0.02:-0.02),3.28,9.5);scene.add(top);
+  const bot=top.clone();bot.position.y=2.14;scene.add(bot);});
+ [['L',-6.9,Math.PI/2],['R',6.9,-Math.PI/2]].forEach(([side,x,ry])=>{
+  const mesh=makeSignMesh('BOWLING','#00eaff',3.2,0.6);
+   mesh.position.set(x,1.5,1.2);mesh.rotation.y=ry;scene.add(mesh);});}
+// Rebuild editable signs after text, color, animation, or anchor changes.
+ function buildSigns(){
+ signMeshes.forEach(s=>{scene.remove(s.mesh);s.mesh.material.map?.dispose();s.mesh.material.dispose();});
+ signMeshes=[];
+ CFG.env.signs.forEach((sc,i)=>{
+  const mesh=makeSignMesh(sc.text||'NEON',sc.color);
+  const a=SIGN_ANCHORS[sc.anchor]||SIGN_ANCHORS[0];
+  mesh.position.set(...a.p);mesh.rotation.set(...a.r);mesh.position.y+=i*0.001;
+  scene.add(mesh);signMeshes.push({mesh,cfg:sc});});}
+
+/* ================= particles & trail ================= */
+// Particles use a fixed pool so collisions never allocate new objects during gameplay.
+const MAXP=140;let pGeo,pPts;const pdata=[];
+// Create the shared point geometry and mark every slot as inactive/off-screen.
+ function initParticles(){
+ const pos=new Float32Array(MAXP*3),col=new Float32Array(MAXP*3);
+ for(let i=0;i<MAXP;i++){pos[i*3+1]=-999;pdata.push({v:new THREE.Vector3(),life:0});}
+ pGeo=new THREE.BufferGeometry();
+ pGeo.setAttribute('position',new THREE.BufferAttribute(pos,3));
+ pGeo.setAttribute('color',new THREE.BufferAttribute(col,3));
+ pPts=new THREE.Points(pGeo,new THREE.PointsMaterial({map:softDotTex,size:0.06,vertexColors:true,transparent:true,opacity:.95,blending:THREE.AdditiveBlending,depthWrite:false,toneMapped:false}));
+ scene.add(pPts);}
+// Emit a burst from the first available particle slots.
+ function burstParticles(p,color,n=14,spd=2.4){
+ const c=new THREE.Color(color);let made=0;
+ for(let i=0;i<MAXP&&made<n;i++){const d=pdata[i];if(d.life>0)continue;
+  d.life=rnd(.3,.7);d.v.set(rnd(-1,1),rnd(0.4,1.6),rnd(-1,1)).normalize().multiplyScalar(spd*rnd(.4,1));
+  const pa=pGeo.attributes.position.array,ca=pGeo.attributes.color.array;
+  pa[i*3]=p.x;pa[i*3+1]=p.y;pa[i*3+2]=p.z;ca[i*3]=c.r;ca[i*3+1]=c.g;ca[i*3+2]=c.b;made++;}
+ pGeo.attributes.color.needsUpdate=true;}
+// Advance active particles under gravity and hide expired slots below the scene.
+ function updateParticles(dt){
+ const pa=pGeo.attributes.position.array;let any=false;
+ for(let i=0;i<MAXP;i++){const d=pdata[i];if(d.life<=0)continue;any=true;d.life-=dt;
+  d.v.y-=4.5*dt;pa[i*3]+=d.v.x*dt;pa[i*3+1]+=d.v.y*dt;pa[i*3+2]+=d.v.z*dt;
+  if(d.life<=0)pa[i*3+1]=-999;}
+ if(any)pGeo.attributes.position.needsUpdate=true;}
+ const TRAIL_N=14,trailSprites=[];let trailPos=[];
+// Trail sprites are reused as a short history of the ball's recent positions.
+ function initTrail(){
+ for(let i=0;i<TRAIL_N;i++){
+  const m=new THREE.SpriteMaterial({map:softDotTex,color:0x00eaff,transparent:true,opacity:0,blending:THREE.AdditiveBlending,depthWrite:false,toneMapped:false});
+  const s=new THREE.Sprite(m);s.scale.setScalar(0.16*(1-i/TRAIL_N));scene.add(s);trailSprites.push(s);}}
+
+/* ================= strike confetti ================= */
+// Confetti uses instancing: one geometry/material is drawn many times with per-piece transforms.
+const CONF_N=180;
+let confMesh,confDummy;
+const confData=[];
+// Allocate and hide all confetti pieces before the first strike.
+ function initConfetti(){
+ const geo=new THREE.PlaneGeometry(0.05,0.032);
+ const mat=new THREE.MeshBasicMaterial({side:THREE.DoubleSide,toneMapped:false,transparent:true,opacity:0.95});
+ confMesh=new THREE.InstancedMesh(geo,mat,CONF_N);
+ confMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+ confMesh.frustumCulled=false;
+ confDummy=new THREE.Object3D();
+ for(let i=0;i<CONF_N;i++){
+  confData.push({active:false,p:new THREE.Vector3(),v:new THREE.Vector3(),
+   e:new THREE.Euler(),av:new THREE.Vector3(),life:0,phase:rnd(0,Math.PI*2)});
+  confMesh.setColorAt(i,new THREE.Color(pick(CONFETTI_COLORS)));
+  confDummy.position.set(0,-99,0);confDummy.scale.setScalar(0.001);confDummy.updateMatrix();
+  confMesh.setMatrixAt(i,confDummy.matrix);}
+ if(confMesh.instanceColor)confMesh.instanceColor.needsUpdate=true;
+ scene.add(confMesh);}
+// Launch pieces from several locations near the pin deck with randomized velocities and spin.
+ function launchConfetti(){
+ for(let i=0;i<CONF_N;i++){
+  const d=confData[i];
+  d.active=true;
+  const cx=pick([-1.4,1.4,0]);
+  d.p.set(cx+rnd(-0.5,0.5),rnd(3.2,4.6),PIN_Z0+rnd(-2.2,1.2));
+  d.v.set(rnd(-1.1,1.1),rnd(-1.6,-0.2),rnd(-0.8,0.6));
+  if(Math.abs(cx)>1){d.v.x=-Math.sign(cx)*rnd(0.6,2.2);d.v.y=rnd(0.5,2.2);}
+  d.e.set(rnd(0,Math.PI*2),rnd(0,Math.PI*2),rnd(0,Math.PI*2));
+  d.av.set(rnd(-9,9),rnd(-9,9),rnd(-9,9));
+  d.life=rnd(2.6,4.4);
+  d.phase=rnd(0,Math.PI*2);
+  confMesh.setColorAt(i,new THREE.Color(pick(CONFETTI_COLORS)));}
+ if(confMesh.instanceColor)confMesh.instanceColor.needsUpdate=true;}
+// Apply gravity, turbulence, fade, and rotation to each active confetti instance.
+ function updateConfetti(dt,t){
+ let any=false;
+ for(let i=0;i<CONF_N;i++){
+  const d=confData[i];
+  if(!d.active){continue;}
+  any=true;
+  d.life-=dt;
+  if(d.life<=0||d.p.y<-0.3){d.active=false;
+   confDummy.position.set(0,-99,0);confDummy.scale.setScalar(0.001);confDummy.updateMatrix();
+   confMesh.setMatrixAt(i,confDummy.matrix);continue;}
+  d.v.y-=1.6*dt;
+  d.v.y=Math.max(d.v.y,-1.4);
+  d.v.x+=Math.sin(t*5+d.phase)*dt*1.1;
+  d.v.z+=Math.cos(t*4.2+d.phase)*dt*0.6;
+  d.v.multiplyScalar(1-0.6*dt);
+  d.p.addScaledVector(d.v,dt);
+  d.e.x+=d.av.x*dt;d.e.y+=d.av.y*dt;d.e.z+=d.av.z*dt;
+  confDummy.position.copy(d.p);
+  confDummy.rotation.copy(d.e);
+  const fadeIn=clamp((4.4-d.life)*6,0,1);
+  const fadeOut=clamp(d.life*1.5,0,1);
+  confDummy.scale.setScalar(Math.min(fadeIn,fadeOut));
+  confDummy.updateMatrix();
+  confMesh.setMatrixAt(i,confDummy.matrix);}
+ if(any)confMesh.instanceMatrix.needsUpdate=true;}
+
+/* ================= fireworks ================= */
+// Fireworks use a dedicated pooled point cloud plus a decaying flash light for strike celebrations.
+const FW_N=320,FW_COLORS=[...NEON_HEX,...CONFETTI_COLORS];
+let fwGeo,fwPts,fwFlash;
+const fwData=[];
+// Allocate and hide every particle slot before the first launch.
+ function initFireworks(){
+ const pos=new Float32Array(FW_N*3),col=new Float32Array(FW_N*3);
+ for(let i=0;i<FW_N;i++){pos[i*3+1]=-999;fwData.push({v:new THREE.Vector3(),life:0});}
+ fwGeo=new THREE.BufferGeometry();
+ fwGeo.setAttribute('position',new THREE.BufferAttribute(pos,3));
+ fwGeo.setAttribute('color',new THREE.BufferAttribute(col,3));
+ fwPts=new THREE.Points(fwGeo,new THREE.PointsMaterial({map:softDotTex,size:0.05,vertexColors:true,transparent:true,opacity:1,blending:THREE.AdditiveBlending,depthWrite:false,toneMapped:false}));
+ scene.add(fwPts);
+ fwFlash=new THREE.PointLight(0xffffff,0,9,1.6);fwFlash.position.set(0,4.1,PIN_Z0-0.2);scene.add(fwFlash);}
+// Explode a single shell into a radial spray of colored sparks from the shared pool.
+ function burstFirework(center,color,n){
+ let made=0;
+ for(let i=0;i<FW_N&&made<n;i++){
+  const d=fwData[i];if(d.life>0)continue;
+  const dir=new THREE.Vector3(rnd(-1,1),rnd(-1,1),rnd(-1,1)).normalize();
+  d.v.copy(dir).multiplyScalar(rnd(1.6,3.2));
+  d.life=rnd(0.9,1.5);
+  const pa=fwGeo.attributes.position.array,ca=fwGeo.attributes.color.array;
+  pa[i*3]=center.x;pa[i*3+1]=center.y;pa[i*3+2]=center.z;
+  const cc=color.clone().offsetHSL(rnd(-0.04,0.04),0,rnd(-0.1,0.15));
+  ca[i*3]=cc.r;ca[i*3+1]=cc.g;ca[i*3+2]=cc.b;
+  made++;}
+ fwGeo.attributes.color.needsUpdate=true;}
+// Launch a small staggered volley of shells above the pin deck; scales with the quality setting.
+ function launchFireworks(){
+ if(!CFG.set.fireworks)return;
+ const qMul={low:0.4,medium:0.7,high:1,ultra:1.3}[CFG.set.quality]??1;
+ const shells=CFG.set.quality==='low'?2:3;
+ for(let s=0;s<shells;s++){
+  const cx=(s-(shells-1)/2)*0.9+rnd(-0.3,0.3);
+  const center=new THREE.Vector3(clamp(cx,-1.6,1.6),rnd(3.4,4.6),PIN_Z0+rnd(-1.4,0.6));
+  burstFirework(center,new THREE.Color(pick(FW_COLORS)),Math.round(rnd(40,58)*qMul));}
+ fwFlash.intensity=16;}
+// Advance active sparks under gravity/drag and decay the celebratory flash light.
+ function updateFireworks(dt){
+ const pa=fwGeo.attributes.position.array;let any=false;
+ for(let i=0;i<FW_N;i++){const d=fwData[i];if(d.life<=0)continue;any=true;d.life-=dt;
+  d.v.y-=2.6*dt;d.v.multiplyScalar(1-0.55*dt);
+  pa[i*3]+=d.v.x*dt;pa[i*3+1]+=d.v.y*dt;pa[i*3+2]+=d.v.z*dt;
+  if(d.life<=0)pa[i*3+1]=-999;}
+ if(any)fwGeo.attributes.position.needsUpdate=true;
+ fwFlash.intensity=Math.max(0,fwFlash.intensity-dt*40);}
+
+/* ================= ball ================= */
+// Ball physics stays separate from the visual group so collision math uses a simple state object.
+let ballRoot,ballMesh,ballMat,aimGuide,ballTexCanvas;
+const ballPhys={vel:new THREE.Vector3(),spin:0,rolling:false,gutter:false,gx:0};
+// Draw the selected ball pattern into a reusable canvas texture.
+ function ballTexture(pattern,hex){
+ if(!ballTexCanvas)ballTexCanvas=document.createElement('canvas');
+ const c=ballTexCanvas;c.width=512;c.height=256;const x=c.getContext('2d');
+ x.fillStyle=hex;x.fillRect(0,0,512,256);
+ const col=new THREE.Color(hex);const lite='#'+col.clone().lerp(new THREE.Color('#ffffff'),.5).getHexString();
+ const dark='#'+col.clone().lerp(new THREE.Color('#000000'),.55).getHexString();
+ if(pattern==='rings'){x.strokeStyle=lite;x.lineWidth=9;for(let i=0;i<6;i++){x.globalAlpha=.5;x.beginPath();x.arc(120+i*60,128,46,0,7);x.stroke();}}
+ if(pattern==='swirl'){x.globalAlpha=.6;x.strokeStyle=lite;x.lineWidth=14;for(let i=0;i<3;i++){x.beginPath();
+  for(let a=0;a<6.3;a+=.2)x.lineTo(60+i*180+Math.cos(a*2+i)*a*9,128+Math.sin(a*2+i)*a*9);x.stroke();}}
+ if(pattern==='galaxy'){const g=x.createRadialGradient(200,120,10,200,120,200);g.addColorStop(0,lite);g.addColorStop(.4,hex);g.addColorStop(1,dark);
+  x.fillStyle=g;x.fillRect(0,0,512,256);x.fillStyle='#fff';for(let i=0;i<150;i++){x.globalAlpha=rnd(.2,1);x.fillRect(rnd(512),rnd(256),rnd(1,2.4),rnd(1,2.4));}}
+ if(pattern==='marble'){x.globalAlpha=.5;x.strokeStyle=lite;x.lineWidth=3;for(let i=0;i<14;i++){x.beginPath();let px=rnd(512),py=0;x.moveTo(px,py);
+  while(py<256){py+=rnd(10,26);px+=rnd(-26,26);x.lineTo(px,py);}x.stroke();}}
+ if(pattern==='retro'){x.globalAlpha=.85;const cols=['#ff2b3d','#ffe72b','#00eaff'];cols.forEach((cc,i)=>{x.fillStyle=cc;x.beginPath();x.arc(140,256,150-i*34,Math.PI,0);x.fill();});}
+ x.globalAlpha=1;
+ x.fillStyle='rgba(0,0,0,.88)';
+ [[300,86,11],[336,86,11],[318,120,13]].forEach(([hx,hy,r])=>{x.beginPath();x.arc(hx,hy,r,0,7);x.fill();
+  x.strokeStyle='rgba(255,255,255,.14)';x.lineWidth=2;x.beginPath();x.arc(hx,hy-2,r,Math.PI*1.1,Math.PI*1.9);x.stroke();});
+ const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;t.wrapS=THREE.RepeatWrapping;t.anisotropy=8;return t;}
+// Create the ball, aiming guide, and their shared parent at the approach start.
+ function buildBall(){
+ ballRoot=new THREE.Group();scene.add(ballRoot);
+ ballMat=new THREE.MeshPhysicalMaterial({color:0xffffff,roughness:.15,metalness:.2,clearcoat:1,clearcoatRoughness:.12,envMapIntensity:1.5});
+ applyBallLook();
+ ballMesh=new THREE.Mesh(new THREE.SphereGeometry(BALL_R,48,32),ballMat);
+ ballMesh.castShadow=true;ballMesh.position.y=BALL_R;ballRoot.add(ballMesh);
+ aimGuide=new THREE.Group();
+ const strip=new THREE.Mesh(new THREE.PlaneGeometry(0.03,8),new THREE.MeshBasicMaterial({color:CFG.env.primary,transparent:true,opacity:.85,toneMapped:false}));
+ neonMats.push({mat:strip.material,base:new THREE.Color(CFG.env.primary),key:'p'});
+ strip.rotation.x=-Math.PI/2;strip.position.set(0,0.006,4.2);aimGuide.add(strip);
+ const dot=new THREE.Mesh(new THREE.RingGeometry(0.055,0.08,28),strip.material.clone());
+ neonMats.push({mat:dot.material,base:new THREE.Color(CFG.env.primary),key:'p'});
+ dot.rotation.x=-Math.PI/2;dot.position.set(0,0.006,8.4);aimGuide.add(dot);
+ ballRoot.add(aimGuide);
+ ballRoot.position.set(0,0,0.4);}
+// Apply material properties and regenerate the procedural texture after customization changes.
+ function applyBallLook(){
+ const b=CFG.ball;
+ ballMat.roughness=b.rough;ballMat.metalness=b.metal;ballMat.clearcoat=b.clearcoat;
+ ballMat.map=ballTexture(b.pattern,b.color);
+ const em=new THREE.Color(b.color).lerp(new THREE.Color('#ffffff'),.3);
+ ballMat.emissive=em;ballMat.emissiveIntensity=b.glow*0.55;
+ ballMat.needsUpdate=true;}
+
+/* ================= pins ================= */
+// Pin collision radius is intentionally smaller than the visible body for forgiving gameplay.
+const pins=[];const PIN_CR=0.062;
+// The lathe profile describes one pin silhouette that is shared by every pin mesh.
+ function lathePoints(){return [[0.002,0],[0.03,0.002],[0.05,0.02],[0.059,0.06],[0.061,0.11],[0.056,0.16],[0.044,0.21],[0.034,0.26],[0.031,0.29],[0.035,0.32],[0.037,0.345],[0.031,0.37],[0.015,0.382],[0.002,0.386]].map(p=>new THREE.Vector2(p[0],p[1]));}
+ let pinGeo;
+ const RACK=[];
+// Store the standard triangular ten-pin rack in lane coordinates.
+ {for(let r=0;r<4;r++)for(let i=0;i<=r;i++)RACK.push({x:(i-r/2)*PIN_SP,z:PIN_Z0+r*PIN_SP*0.866});}
+// Accessories are small meshes attached to a pin's decorative group.
+ function makeAccessory(type){
+ const g=new THREE.Group();
+ const std=(c,r=.6,m=.2)=>new THREE.MeshStandardMaterial({color:c,roughness:r,metalness:m});
+ if(type==='cowboy'){const brim=new THREE.Mesh(new THREE.CylinderGeometry(.064,.068,.008,18),std('#6b4423'));brim.position.y=.392;
+  const crown=new THREE.Mesh(new THREE.CylinderGeometry(.03,.037,.052,16),std('#7a4f28'));crown.position.y=.418;g.add(brim,crown);}
+ if(type==='crown'){const base=new THREE.Mesh(new THREE.CylinderGeometry(.038,.035,.03,16),std('#ffcf3f',.25,.95));base.position.y=.406;g.add(base);
+  for(let i=0;i<5;i++){const sp=new THREE.Mesh(new THREE.ConeGeometry(.009,.026,8),std('#ffcf3f',.25,.95));
+   const a=i/5*Math.PI*2;sp.position.set(Math.cos(a)*.031,.43,Math.sin(a)*.031);g.add(sp);}}
+ if(type==='wizard'){const brim=new THREE.Mesh(new THREE.CylinderGeometry(.072,.076,.007,18),std('#5a2d9e'));brim.position.y=.392;
+  const cone=new THREE.Mesh(new THREE.ConeGeometry(.052,.18,16),std('#6d37c2'));cone.position.y=.48;cone.rotation.z=.12;g.add(brim,cone);}
+ if(type==='robot'){const ant=new THREE.Mesh(new THREE.CylinderGeometry(.0035,.0035,.08,6),std('#9aa4ad',.35,.9));ant.position.y=.425;
+  const tip=new THREE.Mesh(new THREE.SphereGeometry(.01,10,8),new THREE.MeshBasicMaterial({color:'#ff2b3d',toneMapped:false}));tip.position.y=.47;
+  const visor=new THREE.Mesh(new THREE.BoxGeometry(.052,.013,.011),new THREE.MeshBasicMaterial({color:'#ff2b3d',toneMapped:false}));visor.position.set(0,.332,.032);g.add(ant,tip,visor);}
+ if(type==='astro'){const helm=new THREE.Mesh(new THREE.SphereGeometry(.056,20,16),new THREE.MeshPhysicalMaterial({color:'#aaddff',transparent:true,opacity:.22,roughness:.05,metalness:0,clearcoat:1}));helm.position.y=.335;g.add(helm);}
+ if(type==='knight'){const helm=new THREE.Mesh(new THREE.CylinderGeometry(.035,.038,.057,14),std('#9aa4ad',.3,.95));helm.position.y=.412;
+  const plume=new THREE.Mesh(new THREE.BoxGeometry(.009,.052,.022),std('#d81f3d',.6));plume.position.set(0,.447,-.011);plume.rotation.x=.5;g.add(helm,plume);}
+ if(type==='pirate'){const hat=new THREE.Mesh(new THREE.BoxGeometry(.098,.013,.052),std('#15151c'));hat.position.y=.398;hat.rotation.z=.08;
+  const hat2=new THREE.Mesh(new THREE.BoxGeometry(.072,.032,.047),std('#15151c'));hat2.position.y=.413;
+  const eye=new THREE.Mesh(new THREE.SphereGeometry(.0075,10,8),std('#000'));eye.position.set(.013,.334,.03);g.add(hat,hat2,eye);}
+ if(type==='devil'){[-1,1].forEach(s=>{const h=new THREE.Mesh(new THREE.ConeGeometry(.01,.042,10),std('#e0202e',.4));
+  h.position.set(s*.023,.41,0);h.rotation.z=-s*.4;g.add(h);});}
+ if(type==='halo'){const h=new THREE.Mesh(new THREE.TorusGeometry(.048,.0065,10,26),new THREE.MeshBasicMaterial({color:'#ffd94a',toneMapped:false}));
+  h.position.y=.47;h.rotation.x=Math.PI/2;g.add(h);}
+ if(type==='samurai'){const helm=new THREE.Mesh(new THREE.ConeGeometry(.047,.052,14),std('#7a1f2b',.45,.6));helm.position.y=.412;
+  [-1,1].forEach(s=>{const horn=new THREE.Mesh(new THREE.ConeGeometry(.006,.052,8),std('#d4af37',.3,.9));
+   horn.position.set(s*.033,.434,0);horn.rotation.z=-s*1.1;g.add(horn);});g.add(helm);}
+  return g;}
+// Faces use tiny meshes rather than textures so they scale with the pin preview and scene.
+ function makeFace(type){
+ const g=new THREE.Group();const black=new THREE.MeshStandardMaterial({color:0x111111,roughness:.5});
+ if(type==='none')return g;
+ const e1=new THREE.Mesh(new THREE.SphereGeometry(.005,10,8),black);e1.position.set(-.013,.334,.032);
+ const e2=e1.clone();e2.position.x=.013;g.add(e1,e2);
+ if(type==='happy'){const m=new THREE.Mesh(new THREE.TorusGeometry(.0095,.0024,8,14,Math.PI),black);m.position.set(0,.322,.0315);m.rotation.z=Math.PI;g.add(m);}
+ if(type==='angry'){const m=new THREE.Mesh(new THREE.BoxGeometry(.017,.0032,.003),black);m.position.set(0,.321,.0325);g.add(m);
+  const b1=new THREE.Mesh(new THREE.BoxGeometry(.012,.0028,.003),black);b1.position.set(-.013,.343,.0315);b1.rotation.z=-.5;
+  const b2=b1.clone();b2.position.x=.013;b2.rotation.z=.5;g.add(b1,b2);}
+ if(type==='wow'){const m=new THREE.Mesh(new THREE.TorusGeometry(.0055,.0024,8,14),black);m.position.set(0,.32,.032);g.add(m);}
+  return g;}
+// A Pin owns both its rendered group and the simple planar state used by the physics solver.
+ class Pin{
+  constructor(i){this.i=i;this.group=new THREE.Group();
+  this.bodyMat=new THREE.MeshStandardMaterial({color:'#fff',roughness:.32,metalness:.04,envMapIntensity:.9});
+  this.body=new THREE.Mesh(pinGeo,this.bodyMat);this.body.castShadow=true;this.group.add(this.body);
+  this.decor=new THREE.Group();this.group.add(this.decor);
+  this.stripeMat=new THREE.MeshStandardMaterial({color:'#f0f',roughness:.4,emissive:'#f0f',emissiveIntensity:.3});
+  this.px=0;this.py=0;this.pz=0;this.vx=0;this.vz=0;this.vy=0;this.y=0;
+  this.tilt=0;this.angVel=0;this.dx=0;this.dz=1;this.spinA=0;this.spinV=0;
+   this.down=false;this.off=false;this.removed=false;this.dropT=-1;this.squash=0;
+   scene.add(this.group);}
+  // Replace stripes, face, and costume without recreating the physics object.
+  decorate(cfg){
+  while(this.decor.children.length)this.decor.remove(this.decor.children[0]);
+  this.bodyMat.color.set(cfg.body);
+  this.bodyMat.emissive.set(cfg.stripe);this.bodyMat.emissiveIntensity=cfg.glow*0.4;
+  const ys=[[0.245,0.038],[0.278,0.0315]];
+  this.stripeMat.color.set(cfg.stripe);this.stripeMat.emissive.set(cfg.stripe);this.stripeMat.emissiveIntensity=0.25+cfg.glow*1.6;
+  for(let s=0;s<Math.min(cfg.stripes,2);s++){const t=new THREE.Mesh(new THREE.TorusGeometry(ys[s][1],0.0075,10,22),this.stripeMat);
+   t.position.y=ys[s][0];t.rotation.x=Math.PI/2;this.decor.add(t);}
+   this.decor.add(makeFace(cfg.face));
+   this.decor.add(makeAccessory(cfg.acc));}
+  // Reset a pin for a new rack; an optional staggered drop makes the rack appear naturally.
+  resetTo(x,z,drop=true){this.px=x;this.pz=z;this.y=drop?0.55:0;this.vx=this.vz=this.vy=0;
+  this.tilt=0;this.angVel=0;this.spinA=0;this.spinV=0;this.dx=0;this.dz=1;
+   this.down=false;this.off=false;this.removed=false;this.dropT=drop?rnd(0,0.35):-1;this.squash=0;this.group.visible=true;this.applyMesh();}
+  // Mark a pin as inactive and hide it when the next throw clears the deck.
+  removeAnim(){this.off=true;this.removed=true;this.group.visible=false;}
+  // Copy the physics state into the Three.js transform, including falling tilt and squash.
+  applyMesh(){this.group.position.set(this.px,this.y,this.pz);
+  let sy=1,sxz=1;
+  if(this.squash>0){sy=1-0.28*Math.sin(this.squash*Math.PI);sxz=1+0.22*Math.sin(this.squash*Math.PI);}
+  this.group.scale.set(sxz,sy,sxz);
+  if(this.tilt>0.0001){this._axis||(this._axis=new THREE.Vector3());
+   this._axis.set(this.dz,0,-this.dx).normalize();
+   this.group.quaternion.setFromAxisAngle(this._axis,this.tilt);
+   this.group.rotateY(this.spinA);}else this.group.rotation.set(0,this.spinA,0);}
+ }
+ // Build one shared geometry and ten independent pin state objects.
+ function buildPins(){pinGeo=new THREE.LatheGeometry(lathePoints(),28);
+ for(let i=0;i<10;i++)pins.push(new Pin(i));decorateAllPins();}
+ // Apply the saved appearance for each rack position.
+ function decorateAllPins(){pins.forEach((p,i)=>p.decorate(CFG.pins.list[i]));}
+ // Restore all pins to the standard rack, optionally with the intro drop animation.
+ function fullRack(drop=true){pins.forEach((p,i)=>p.resetTo(RACK[i].x,RACK[i].z,drop));}
+ // Count only pins that are still standing and participate in scoring.
+ function countStanding(){return pins.filter(p=>!p.down&&!p.off&&!p.removed).length;}
+
+/* ================= physics ================= */
+// These timers bridge per-frame physics with impact feedback, slow motion, camera shake, and audio.
+let timeScale=1,slowmoT=0,shakeT=0,lastHitT=-9,impactDone=false,gutterFlag=false,rollClock=0;
+// Chaos keeps the same rules while amplifying pin impulses for a more volatile mode.
+const chaosMul=()=>game.mode==='chaos'?2.2:1;
+// Convert the UI's power, aim, and spin controls into the ball's initial velocity.
+ function launchBall(){
+ const power=parseFloat($('#inPower').value);
+ let speed=(5.4+power*0.064)*(game.mode==='chaos'?1.12:1);
+ let aim=aimAngle;
+ if(CFG.set.aim)aim*=0.86;
+ ballPhys.vel.set(Math.sin(aim)*speed,0,Math.cos(aim)*speed);
+ ballPhys.spin=parseFloat($('#inSpin').value)/100;
+ ballPhys.rolling=true;ballPhys.gutter=false;
+ state='rolling';rollClock=0;impactDone=false;gutterFlag=false;trailPos=[];
+ aimGuide.visible=false;AU.whoosh();$('#throwBtn').classList.add('off');$('#hint').classList.add('hidden');
+ game.standingBefore=countStanding();}
+// Flash the selected bumper and emit a small spark burst when the ball rebounds.
+ function bumperHit(side){
+ bumperFlash[side]=1;
+ AU.bonk();
+  burstParticles(new THREE.Vector3(ballRoot.position.x,0.14,ballRoot.position.z),CFG.env.primary,12,2.2);}
+// Advance the ball, resolve bumpers/gutters, transfer impacts to pins, and record its trail.
+ function physicsStep(dt){
+ if(!ballPhys.rolling)return;
+ rollClock+=dt;
+ const bp=ballPhys,pos=ballRoot.position;
+ const fr=0.30*CFG.ball.friction;
+ const sp=bp.vel.length();
+ if(sp>0.01){const dec=fr*dt;const ns=Math.max(0,sp-dec);bp.vel.multiplyScalar(ns/sp);}
+ if(!bp.gutter){
+  const zf=clamp((pos.z-4)/9,0,1);
+  bp.vel.x+=bp.spin*2.6*CFG.ball.hook*(0.35+zf)*dt*(sp/10+0.3);}
+ pos.x+=bp.vel.x*dt;pos.z+=bp.vel.z*dt;
+  // Before the pit, the ball either rebounds from bumpers or enters a gutter.
+  if(!bp.gutter&&pos.z<PIT_Z){
+  const edge=HALF-BALL_R*0.4;
+  if(CFG.set.bumper){
+   if(pos.x>edge){pos.x=edge;if(bp.vel.x>0){bp.vel.x=-Math.abs(bp.vel.x)*0.6-0.25;bumperHit(1);}}
+   if(pos.x<-edge){pos.x=-edge;if(bp.vel.x<0){bp.vel.x=Math.abs(bp.vel.x)*0.6+0.25;bumperHit(0);}}
+  }else if(Math.abs(pos.x)>HALF+0.01){
+   bp.gutter=true;gutterFlag=true;bp.gx=Math.sign(pos.x)*(HALF+0.13);
+   bp.vel.x=0;bp.spin=0;AU.gutter();}}
+ if(bp.gutter){pos.x=lerp(pos.x,bp.gx,1-Math.pow(0.001,dt));pos.y=lerp(pos.y,0.055,1-Math.pow(0.001,dt));}
+ else pos.y=BALL_R;
+  // Keep the ball/pin overlap resolved so the ball cannot tunnel through a pin.
+  for(const p of pins){
+  if(p.removed||p.off)continue;
+  const ddx=p.px-pos.x,ddz=p.pz-pos.z;const d2=ddx*ddx+ddz*ddz;const rr=BALL_R+PIN_CR;
+  if(d2<rr*rr&&d2>1e-8){
+   const d=Math.sqrt(d2),nx=ddx/d,nz=ddz/d;
+   const rel=bp.vel.x*nx+bp.vel.z*nz;
+   if(rel>0){
+    const imp=rel*0.98*CFG.set.pinStr*chaosMul();
+    p.vx+=nx*imp;p.vz+=nz*imp;
+    const len=Math.hypot(p.vx,p.vz)||1;p.dx=p.vx/len;p.dz=p.vz/len;
+    p.angVel=Math.min(14,p.angVel+imp*5.5);
+    p.spinV+=rnd(-4,4)*imp*0.25;
+    bp.vel.x-=nx*rel*0.14;bp.vel.z-=nz*rel*0.14;
+    lastHitT=rollClock;AU.impact(rel);
+    if(!impactDone&&rel>2.4){impactDone=true;
+     if(CFG.set.slowmo){slowmoT=0.55;}
+     if(CFG.set.shake)shakeT=0.5;
+     burstParticles(new THREE.Vector3(p.px,0.22,p.pz),CFG.env.primary,16,2.6);}
+   }
+   p.px=pos.x+nx*(rr+0.002);p.pz=pos.z+nz*(rr+0.002);
+  }}
+  // Resolve pairwise pin overlap and transfer relative velocity between neighboring pins.
+  for(let i=0;i<10;i++){const a=pins[i];if(a.removed||a.off)continue;
+  for(let j=i+1;j<10;j++){const b=pins[j];if(b.removed||b.off)continue;
+   let ddx=b.px-a.px,ddz=b.pz-a.pz;const d=Math.hypot(ddx,ddz);
+   if(d<0.118&&d>1e-6){const nx=ddx/d,nz=ddz/d,ov=(0.118-d)/2;
+    a.px-=nx*ov;a.pz-=nz*ov;b.px+=nx*ov;b.pz+=nz*ov;
+    const rvx=b.vx-a.vx,rvz=b.vz-a.vz;const rel=rvx*nx+rvz*nz;
+    if(rel<0){const jm=-rel*0.72;
+     a.vx-=nx*jm;a.vz-=nz*jm;b.vx+=nx*jm;b.vz+=nz*jm;
+     const hit=-rel;
+     if(hit>0.6){b.angVel=Math.min(13,b.angVel+hit*4.2*CFG.set.pinStr*chaosMul());
+      const l=Math.hypot(b.vx,b.vz)||1;b.dx=b.vx/l;b.dz=b.vz/l;b.spinV+=rnd(-5,5);
+      a.angVel=Math.min(13,a.angVel+hit*1.4);
+      const l2=Math.hypot(a.vx,a.vz)||1;if(hit>1.5){a.dx=a.vx/l2;a.dz=a.vz/l2;}
+      lastHitT=rollClock;AU.impact(hit*0.8);
+      if(hit>3)burstParticles(new THREE.Vector3((a.px+b.px)/2,0.2,(a.pz+b.pz)/2),CFG.env.secondary,8,1.8);}}}}}
+  // Rotate the visible ball and retain only a short trail history for the renderer.
+  if(sp>0.02){const ax=new THREE.Vector3(bp.vel.z,0,-bp.vel.x).normalize();
+  ballMesh.rotateOnWorldAxis(ax,-sp*dt/BALL_R);ballMesh.rotation.y+=bp.spin*dt*2;}
+ if(trailPos.length===0||pos.distanceToSquared(trailPos[trailPos.length-1])>0.002){
+  trailPos.push(pos.clone());if(trailPos.length>TRAIL_N)trailPos.shift();}
+  // Once beyond the pin deck, let the ball fall into the pit while bleeding speed.
+  if(pos.z>PIT_Z+0.4){pos.y-=2.4*dt;bp.vel.multiplyScalar(0.96);}
+ AU.setRoll(sp);}
+ // Advance pin drops, friction, deck containment, tilt, and spin.
+ function pinStep(dt){
+ for(const p of pins){
+  if(p.removed)continue;
+  if(p.dropT>=0){p.dropT-=dt;
+   if(p.dropT<=0){p.dropT=-1;p.squash=1;}
+   p.y=0.55*Math.max(0,p.dropT/0.35);p.applyMesh();continue;}
+  if(p.squash>0){p.squash-=dt*3;if(p.squash<0)p.squash=0;p.applyMesh();}
+  if(p.off){ // reserved for the between-throw sweep animation
+   p.vy-=9.8*dt;p.y+=p.vy*dt;p.px+=p.vx*dt*0.4;p.pz+=p.vz*dt*0.4;
+   if(p.y<-2){p.removed=true;p.group.visible=false;}p.applyMesh();continue;}
+  p.px+=p.vx*dt;p.pz+=p.vz*dt;
+  const fr=p.down?2.8:1.6;p.vx*=Math.max(0,1-fr*dt);p.vz*=Math.max(0,1-fr*dt);
+  /* Pins bounce off invisible deck walls instead of leaving the playable pit. */
+  if(p.px>DECK_X){const hitv=p.vx;p.px=DECK_X;
+   if(hitv>0){p.vx=-hitv*0.42;p.spinV+=rnd(-3,3);if(hitv>1.3)AU.impact(hitv*0.35);}}
+  else if(p.px<-DECK_X){const hitv=-p.vx;p.px=-DECK_X;
+   if(hitv>0){p.vx=hitv*0.42;p.spinV+=rnd(-3,3);if(hitv>1.3)AU.impact(hitv*0.35);}}
+  if(p.pz>DECK_ZB){const hitv=p.vz;p.pz=DECK_ZB;
+   if(hitv>0){p.vz=-hitv*0.42;p.angVel*=0.8;if(hitv>1.3)AU.impact(hitv*0.35);}}
+  else if(p.pz<DECK_ZF){const hitv=-p.vz;p.pz=DECK_ZF;
+   if(hitv>0){p.vz=hitv*0.42;}}
+  if(p.angVel>0.02||p.tilt>0.01){
+   p.tilt+=p.angVel*dt;
+   if(p.tilt>0.3)p.angVel+=Math.sin(p.tilt)*10.5*dt*(p.down?0.4:1)*chaosMul();
+   else{p.angVel*=Math.max(0,1-6*dt);p.tilt*=Math.max(0,1-3.5*dt);}
+   if(p.tilt>=Math.PI/2){p.tilt=Math.PI/2;p.angVel=0;p.down=true;}
+   if(p.tilt>1.02)p.down=true;}
+  p.spinA+=p.spinV*dt;p.spinV*=Math.max(0,1-1.6*dt);
+ p.applyMesh();}}
+ // A throw is settled when the ball exits, times out, or both ball and pins are calm.
+ function rollSettled(){
+ if(!ballPhys.rolling)return false;
+ const sp=ballPhys.vel.length();
+ const pos=ballRoot.position;
+ if(pos.z>PIT_Z+1.2||pos.y<-0.4)return true;
+ if(rollClock>7)return true;
+ if(sp<0.06&&rollClock-lastHitT>1.1){
+  let calm=true;for(const p of pins){if(p.removed||p.off)continue;
+   if(Math.hypot(p.vx,p.vz)>0.06||p.angVel>0.15){calm=false;break;}}
+  if(calm)return true;}
+ return false;}
+
+/* ================= game state / scoring ================= */
+// The game object stores frame rolls; transient physics stays in the systems above.
+let state='menu';
+const game={mode:'classic',frame:0,thr:0,frames:[],standingBefore:10,total:0,done:false};
+let aimAngle=0,startX=0;
+// Start a fresh match, restore the rack, and expose the aiming state to the HUD.
+ function resetGame(mode){
+ game.mode=mode;game.frame=0;game.thr=0;game.frames=Array.from({length:10},()=>[]);game.done=false;game.total=0;
+ fullRack(true);resetBallToStart();aimAngle=0;startX=0;ballRoot.position.x=0;ballRoot.rotation.set(0,0,0);
+ state='aim';$('#modechip').textContent=mode.toUpperCase();
+ buildScorebar();updateHUD();}
+ // Put the ball back on the approach after a throw has been scored.
+ function resetBallToStart(){
+ ballPhys.rolling=false;ballPhys.gutter=false;ballPhys.vel.set(0,0,0);
+ ballRoot.position.set(startX,0,0.4);aimGuide.visible=true;$('#throwBtn').classList.remove('off');AU.setRoll(0);trailPos=[];}
+ // Flatten the per-frame rolls for standard ten-frame bonus calculations.
+ function flatRolls(){return game.frames.flat();}
+ // The tenth frame can end after two rolls or continue for a strike/spare bonus roll.
+ function tenthComplete(t){return t.length===3||(t.length===2&&t[0]!==10&&t[0]+t[1]<10);}
+ // Calculate cumulative scores while leaving incomplete strike/spare frames blank.
+ function cumulative(){
+ const r=flatRolls();let p=0,total=0;const out=[];
+ for(let f=0;f<9;f++){
+  if(p>=r.length){out.push(null);continue;}
+  if(r[p]===10){if(p+2<r.length){total+=10+r[p+1]+r[p+2];out.push(total);}else out.push(null);p+=1;}
+  else if(p+1<r.length){
+   if(r[p]+r[p+1]===10){if(p+2<r.length){total+=10+r[p+2];out.push(total);}else out.push(null);}
+   else{total+=r[p]+r[p+1];out.push(total);}p+=2;}
+  else{out.push(null);p+=1;}}
+ const rest=r.slice(p);const tenth=game.frames[9]||[];
+ if(tenthComplete(tenth)&&rest.length===tenth.length){total+=rest.reduce((a,b)=>a+b,0);out.push(total);}
+ else out.push(null);
+  return out;}
+ // Convert numeric rolls to the familiar X, slash, dash, or pin-count symbols.
+ function frameSymbols(rolls){
+ const out=[];let base=0;
+ for(const v of rolls){
+  if(v===10&&base===0){out.push('X');base=0;}
+  else if(base+v===10){out.push('/');base=0;}
+  else{out.push(v===0?'–':String(v));base=base+v;}}
+ return out;}
+ let sbCells=[];
+ // Create the ten reusable score cells; updateHUD fills their contents during play.
+ function buildScorebar(){
+ const sb=$('#scorebar');sb.innerHTML='';sbCells=[];
+ for(let f=0;f<10;f++){const c=document.createElement('div');c.className='fcell';
+  c.innerHTML=`<div class="fn">${f+1}</div><div class="rl"></div><div class="sc"></div>`;
+  sb.appendChild(c);sbCells.push(c);}}
+ // Refresh score text, frame symbols, current-frame highlighting, and the large score display.
+ function updateHUD(){
+ const cum=cumulative();
+ for(let f=0;f<10;f++){const c=sbCells[f];if(!c)continue;
+  const rolls=game.frames[f]||[];const syms=frameSymbols(rolls);
+  c.querySelector('.rl').textContent=syms.join(' ');
+  c.querySelector('.sc').textContent=cum[f]??'';
+  c.classList.toggle('cur',!game.done&&game.mode!=='practice'&&f===game.frame);}
+ const tot=cum[9]??cum.filter(x=>x!=null).slice(-1)[0]??0;
+ if(game.mode==='practice'){game.total=flatRolls().reduce((a,b)=>a+b,0);
+  $('#bigscore').textContent=game.total;$('#frameinfo').textContent='PRACTICE';}
+ else{$('#bigscore').textContent=tot;
+   $('#frameinfo').textContent=game.done?'COMPLETE':`FRAME ${game.frame+1} · THROW ${game.thr+1}`;}}
+ // Restart the CSS animation so repeated messages such as consecutive strikes still appear.
+ function showBanner(txt){const b=$('#banner');b.textContent=txt;b.classList.remove('show');void b.offsetWidth;b.classList.add('show');}
+ // Convert standing pins into a roll, show feedback, and schedule the next rack or throw.
+ function endThrow(){
+ state='settle';AU.setRoll(0);
+ const standingAfter=countStanding();
+ const knocked=Math.max(0,game.standingBefore-standingAfter);
+ const cur=game.frames[game.frame]||(game.frames[game.frame]=[]);
+ cur.push(knocked);
+ let msg;
+ const isStrike=game.standingBefore===10&&knocked===10;
+ if(isStrike){msg='STRIKE!';AU.strike();launchConfetti();launchFireworks();}
+ else if(knocked===game.standingBefore&&knocked>0&&game.standingBefore<10){msg='SPARE!';AU.spare();launchConfetti();}
+ else if(gutterFlag&&knocked===0){msg='GUTTER';}
+ else if(knocked===0){msg='MISS';}
+ else{msg=knocked+' PINS';}
+ showBanner(msg);updateHUD();
+ if(isStrike)setTimeout(()=>{launchConfetti();launchFireworks();},700);
+ const action=decideAction(cur,knocked);
+ setTimeout(()=>{
+  if(action==='over'){gameOver();return;}
+  if(action==='rack')fullRack(true);
+  else if(action==='clear')pins.forEach(p=>{if(p.down||p.off)p.removeAnim();});
+  camReturn=1;
+   setTimeout(()=>{resetBallToStart();state='aim';updateHUD();},900);
+  },1500);}
+ // Decide whether the rules require a second ball, a cleared rack, a bonus ball, or game over.
+ function decideAction(cur,knocked){
+ if(game.mode==='practice'){return 'rack';}
+ const fi=game.frame;
+ if(fi<9){
+  if(game.thr===0){
+   if(knocked===game.standingBefore&&game.standingBefore===10){game.frame++;game.thr=0;return game.frame>=10?'over':'rack';}
+   game.thr=1;return 'clear';}
+  game.frame++;game.thr=0;return game.frame>=10?'over':'rack';}
+ if(cur.length===1){
+  if(cur[0]===10)return 'rack';
+  game.thr=1;return 'clear';}
+ if(cur.length===2){
+  const need=cur[0]===10||cur[0]+cur[1]===10;
+  if(!need){game.done=true;return 'over';}
+  game.thr=2;
+  const cleared=(cur[0]===10&&cur[1]===10)||(cur[0]!==10&&cur[0]+cur[1]===10);
+  return cleared?'rack':'clear';}
+  game.done=true;return 'over';}
+ // Show the final score screen after all required tenth-frame rolls are complete.
+ function gameOver(){
+ game.done=true;updateHUD();
+ const cum=cumulative();$('#finalScore').textContent=cum[9]??0;
+ $('#over').classList.remove('hidden');$('#hud').classList.add('hidden');state='over';}
+
+/* ================= camera ================= */
+// Camera targets are damped rather than snapped so aiming and impact follow shots smoothly.
+let camTarget=new THREE.Vector3(0,0.3,8),camReturn=0,fovCur=58;
+const camTween={active:false,t:0,dur:1,fp:new THREE.Vector3(),tp:new THREE.Vector3(),ft:new THREE.Vector3(),tt:new THREE.Vector3()};
+const _desired=new THREE.Vector3(),_targ=new THREE.Vector3();
+// Choose a camera pose for menu, aiming, rolling, or the post-throw return transition.
+ function updateCamera(dt,rdt){
+ fovCur=lerp(fovCur,camera.userData.fovTarget||CFG.set.fov,1-Math.pow(0.02,rdt));
+ if(camReturn>0){camReturn-=rdt/1.2;
+  const t=1-Math.max(0,camReturn);const e=t*t*(3-2*t);
+  const tp=new THREE.Vector3(startX*0.4,1.5,-1.9),tt=new THREE.Vector3(startX*0.6,0.35,7);
+  camera.position.lerpVectors(camTween.ft,tp,e);camTarget.lerpVectors(camTween.tt,tt,e);
+  if(camReturn<=0)camTween.active=false;}
+ else if(state==='rolling'||state==='settle'){
+  const bp=ballPhys,pos=ballRoot.position;
+  const sp=bp.vel.length();
+  let dir=new THREE.Vector3(bp.vel.x,0,bp.vel.z);if(dir.lengthSq()<0.001)dir.set(0,0,1);dir.normalize();
+  const nearPins=pos.z>13;
+  const dist=(1.5+sp*0.11)*CFG.set.followDist+(nearPins?1.1:0);
+  const h=(0.75+sp*0.02)*CFG.set.followHeight+(nearPins?0.45:0);
+  _desired.set(pos.x-dir.x*dist,Math.max(0.35,pos.y+h),pos.z-dir.z*dist);
+  camera.userData.fovTarget=nearPins?CFG.set.fov+11:CFG.set.fov;
+  const lam=CFG.set.smooth*0.7;
+  camera.position.x=damp(camera.position.x,_desired.x,lam,rdt);
+  camera.position.y=damp(camera.position.y,_desired.y,lam,rdt);
+  camera.position.z=damp(camera.position.z,_desired.z,lam,rdt);
+  _targ.set(pos.x,0.16,pos.z+0.6);
+  camTarget.x=damp(camTarget.x,_targ.x,lam*1.4,rdt);
+  camTarget.y=damp(camTarget.y,_targ.y,lam*1.4,rdt);
+  camTarget.z=damp(camTarget.z,_targ.z,lam*1.4,rdt);}
+ else if(state==='aim'){
+  camera.userData.fovTarget=CFG.set.fov;
+  const px=ballRoot.position.x;
+  _desired.set(px*0.42,1.48,-1.85);
+  camera.position.x=damp(camera.position.x,_desired.x,3,rdt);
+  camera.position.y=damp(camera.position.y,_desired.y,3,rdt);
+  camera.position.z=damp(camera.position.z,_desired.z,3,rdt);
+  _targ.set(px*0.6+Math.sin(aimAngle)*3,0.32,7.5);
+  camTarget.x=damp(camTarget.x,_targ.x,3,rdt);
+  camTarget.y=damp(camTarget.y,_targ.y,3,rdt);
+  camTarget.z=damp(camTarget.z,_targ.z,3,rdt);}
+ else if(state==='menu'){
+  const t=performance.now()/1000;
+  camera.position.set(Math.sin(t*0.11)*1.4,1.7+Math.sin(t*0.07)*0.25,-2.6+Math.sin(t*0.05)*0.6);
+  camTarget.lerp(new THREE.Vector3(0,0.3,10),0.05);}
+ camera.fov=fovCur;camera.updateProjectionMatrix();
+ let sx=0,sy=0;
+ if(shakeT>0){shakeT-=rdt;sx=(Math.random()-0.5)*shakeT*0.16;sy=(Math.random()-0.5)*shakeT*0.16;}
+ camera.position.x+=sx;camera.position.y+=sy;
+ camera.lookAt(camTarget);}
+
+/* ================= environment apply ================= */
+// Apply the selected colors and brightness to CSS, lights, registered materials, and signs.
+ function applyEnv(){
+ const e=CFG.env;
+ document.documentElement.style.setProperty('--neon',e.primary);
+ document.documentElement.style.setProperty('--neon2',e.secondary);
+ neonMats.forEach(n=>{n.base.set(n.key==='p'?e.primary:e.secondary);});
+ bumperMats.forEach(b=>b.base.set(e.primary));
+ scene.fog=new THREE.FogExp2(0x010208,CFG.lane.fog);
+ pinSpot.intensity=55*CFG.lane.pinLight;
+ buildSigns();
+ ballLight.color.set(e.primary);
+  trailSprites.forEach(s=>s.material.color.set(e.primary));}
+ // Regenerate the lane texture and map its reflection/marking controls to material properties.
+ function applyLane(){
+ if(laneMat.map)laneMat.map.dispose();
+ laneMat.map=laneTexture();
+ laneMat.roughness=0.45-CFG.lane.gloss*0.32;
+ laneMat.clearcoat=0.3+CFG.lane.gloss*0.7;
+ laneMat.envMapIntensity=0.4+CFG.lane.gloss*1.1;
+ laneMat.needsUpdate=true;
+ markGroup.children.forEach(m=>{m.material.opacity=CFG.lane.markings*(m.material.color.getHex()===0xffffff?0.85:0.5);});}
+const ENV_PRESETS={
+ 'Cyberpunk':{primary:'#00eaff',secondary:'#ff2bd6',fog:0.05,brightness:1,anim:'pulse'},
+ 'Synthwave':{primary:'#ff2bd6',secondary:'#7b2bff',fog:0.07,brightness:1.1,anim:'breath'},
+ 'Deep Space':{primary:'#4a6bff',secondary:'#9fd7ff',fog:0.11,brightness:0.7,anim:'static'},
+ 'Industrial':{primary:'#ff8a2b',secondary:'#ffd24a',fog:0.08,brightness:0.85,anim:'flicker'},
+ '80s Arcade':{primary:'#ffe72b',secondary:'#ff2b3d',fog:0.05,brightness:1.2,anim:'chase'},
+ 'Blacklight':{primary:'#8a2bff',secondary:'#39ff6a',fog:0.09,brightness:1,anim:'pulse'},
+ 'Red Room':{primary:'#ff2b3d',secondary:'#ff6a2b',fog:0.1,brightness:0.9,anim:'breath'},
+ 'Minimal':{primary:'#dfe8ff',secondary:'#8fa3bb',fog:0.04,brightness:0.55,anim:'static'}};
+ // Copy a named atmosphere preset into the live config and refresh the visible customization UI.
+ function applyPreset(name){const p=ENV_PRESETS[name];if(!p)return;
+ Object.assign(CFG.env,{preset:name,...p});applyEnv();save();if(custTab==='env')renderCustBody();}
+
+/* ================= preview ================= */
+// The customization preview is a second, small Three.js renderer sharing the main environment map.
+let pvRenderer,pvScene,pvCam,pvGroup;
+// Create preview lighting and a rotating group separate from the game camera and scene.
+ function initPreview(){
+ const canvas=$('#preview');
+ pvRenderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:false});
+ pvRenderer.setPixelRatio(Math.min(devicePixelRatio,2));
+ pvRenderer.setSize(300,300,false);
+ pvRenderer.toneMapping=THREE.ACESFilmicToneMapping;
+ pvRenderer.toneMappingExposure=1.35;
+ pvRenderer.outputColorSpace=THREE.SRGBColorSpace;
+ pvScene=new THREE.Scene();pvScene.background=new THREE.Color(0x05070f);
+ pvScene.environment=scene.environment;
+ pvCam=new THREE.PerspectiveCamera(38,1,0.01,12);pvCam.position.set(0,0.3,0.75);pvCam.lookAt(0,0.2,0);
+ pvScene.add(new THREE.AmbientLight(0xffffff,1.6));
+ pvScene.add(new THREE.HemisphereLight(0xcfe0ff,0x223,1.0));
+ const key=new THREE.DirectionalLight(0xffffff,3.2);key.position.set(1.2,2,1.6);pvScene.add(key);
+ const fill=new THREE.DirectionalLight(0x88bbff,1.4);fill.position.set(-1.5,1,1.2);pvScene.add(fill);
+ pvRim1=new THREE.PointLight(new THREE.Color(CFG.env.primary),4,4,1.5);pvRim1.position.set(-0.6,0.35,-0.5);pvScene.add(pvRim1);
+ pvRim2=new THREE.PointLight(new THREE.Color(CFG.env.secondary),4,4,1.5);pvRim2.position.set(0.6,0.25,-0.5);pvScene.add(pvRim2);
+ pvGroup=new THREE.Group();pvScene.add(pvGroup);
+ const pd=new THREE.Mesh(new THREE.CircleGeometry(0.4,40),new THREE.MeshStandardMaterial({color:0x0a0d18,roughness:.4,metalness:.3}));
+ pd.rotation.x=-Math.PI/2;pd.position.y=-0.001;pvScene.add(pd);
+ pvRenderer.render(pvScene,pvCam);}
+ let pvRim1,pvRim2;
+ // Dispose geometry, materials, and maps before rebuilding the preview to avoid GPU leaks.
+ function disposeGroup(g){
+ while(g.children.length){const c=g.children[0];g.remove(c);
+  c.traverse?.(o=>{if(o.geometry)o.geometry.dispose();
+   if(o.material){(Array.isArray(o.material)?o.material:[o.material]).forEach(m=>{if(m.map)m.map.dispose();m.dispose();});}});}}
+ // Recreate the selected ball, pin, or lane preview from the current customization state.
+ function rebuildPreview(){
+ if(!pvRenderer)return;
+ disposeGroup(pvGroup);
+ pvGroup.scale.setScalar(1);pvGroup.position.y=0;
+ if(custTab==='pins'){
+  const cfg=CFG.pins.list[CFG.pins.sel];
+  const body=new THREE.Mesh(pinGeo,new THREE.MeshStandardMaterial({color:cfg.body,roughness:.32,
+   emissive:new THREE.Color(cfg.stripe),emissiveIntensity:cfg.glow*0.4,envMapIntensity:1}));
+  pvGroup.add(body);
+  const sm=new THREE.MeshStandardMaterial({color:cfg.stripe,emissive:cfg.stripe,emissiveIntensity:.3+cfg.glow*1.6,roughness:.4});
+  [[0.245,0.038],[0.278,0.0315]].slice(0,cfg.stripes).forEach(([y,r])=>{
+   const t=new THREE.Mesh(new THREE.TorusGeometry(r,0.0075,10,22),sm);t.position.y=y;t.rotation.x=Math.PI/2;pvGroup.add(t);});
+  pvGroup.add(makeFace(cfg.face));pvGroup.add(makeAccessory(cfg.acc));
+  pvGroup.scale.setScalar(1.35);pvGroup.position.y=-0.02;
+  pvCam.position.set(0,0.32,0.85);pvCam.lookAt(0,0.22,0);}
+ else if(custTab==='lane'){
+  const l=CFG.lane,laneW=0.42,laneLen=0.95;
+  const laneMatPv=new THREE.MeshPhysicalMaterial({map:laneTexture(),roughness:0.45-l.gloss*0.32,metalness:.05,
+   clearcoat:0.3+l.gloss*0.7,clearcoatRoughness:.22,envMapIntensity:0.4+l.gloss*1.1});
+  const seg=new THREE.Mesh(new THREE.BoxGeometry(laneW,0.03,laneLen),laneMatPv);
+  seg.position.y=-0.015;pvGroup.add(seg);
+  const stripMat=new THREE.MeshBasicMaterial({color:CFG.env.primary,toneMapped:false});
+  [-1,1].forEach(s=>{
+   const strip=new THREE.Mesh(new THREE.CylinderGeometry(0.006,0.006,laneLen,10),stripMat);
+   strip.rotation.x=Math.PI/2;strip.position.set(s*(laneW/2+0.015),0.001,0);pvGroup.add(strip);});
+  const markMat=new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:clamp(l.markings*0.7,0,1),toneMapped:false});
+  for(let i=0;i<3;i++){
+   const dot=new THREE.Mesh(new THREE.CircleGeometry(0.012,14),markMat);
+   dot.rotation.x=-Math.PI/2;dot.position.set((i-1)*0.09,0.002,laneLen*0.12);pvGroup.add(dot);}
+  pvCam.position.set(0,0.32,0.55);pvCam.lookAt(0,-0.02,-0.15);}
+ else{
+  const radius=0.19;
+  const m=new THREE.Mesh(new THREE.SphereGeometry(radius,48,32),new THREE.MeshPhysicalMaterial({
+   map:ballTexture(CFG.ball.pattern,CFG.ball.color),roughness:CFG.ball.rough,metalness:CFG.ball.metal,
+   clearcoat:CFG.ball.clearcoat,clearcoatRoughness:.12,
+   emissive:new THREE.Color(CFG.ball.color).lerp(new THREE.Color('#fff'),.3),emissiveIntensity:CFG.ball.glow*0.55,envMapIntensity:1.5}));
+  m.position.y=radius;pvGroup.add(m);
+  pvCam.position.set(0,radius*1.15,radius*3.4);pvCam.lookAt(0,radius,0);}
+ pvRim1.color.set(CFG.env.primary);pvRim2.color.set(CFG.env.secondary);
+ pvRenderer.render(pvScene,pvCam);}
+
+/* ================= customization UI ================= */
+// These lists are the values presented as generated buttons in each customization tab.
+let custTab='ball';
+const ACC_LIST=['none','cowboy','crown','wizard','robot','astro','knight','pirate','devil','halo','samurai'];
+const FACE_LIST=['none','happy','angry','wow'];
+const PATTERNS=['none','rings','swirl','galaxy','marble','retro'];
+const BALL_SWATCH=['#14141c','#c8ccd4','#00eaff','#ff2bd6','#b44bff','#2b6bff','#39ff6a','#ff8a2b','#ff2b3d','#ffe72b'];
+// Generate the repeated range-input markup while keeping the value source in CFG.
+ function sliderRow(label,id,min,max,step,val){return `<div class="row"><label>${label}</label><input type="range" id="${id}" min="${min}" max="${max}" step="${step}" value="${val}"></div>`;}
+ // Render only the active tab, then wire its newly created controls and refresh the preview.
+ function renderCustBody(){
+ const b=$('#custBody');let h='';
+ if(custTab==='ball'){
+  const c=CFG.ball;
+  h+=`<h3>PRESETS</h3><div class="swatches">`+
+   [{n:'Black',v:{color:'#14141c',rough:.14,metal:.25,clearcoat:1,glow:0,pattern:'none'}},
+    {n:'Chrome',v:{color:'#c8ccd4',rough:.06,metal:1,clearcoat:1,glow:0,pattern:'none'}},
+    {n:'Neon',v:{color:'#00eaff',rough:.2,metal:.1,clearcoat:1,glow:2,pattern:'none'}},
+    {n:'Carbon',v:{color:'#0c0c10',rough:.5,metal:.6,clearcoat:.6,glow:0,pattern:'rings'}},
+    {n:'Glass',v:{color:'#8fd7ff',rough:.02,metal:0,clearcoat:1,glow:.4,pattern:'none'}},
+    {n:'Marble',v:{color:'#e8e4dc',rough:.25,metal:0,clearcoat:.8,glow:0,pattern:'marble'}},
+    {n:'Galaxy',v:{color:'#2b1b6b',rough:.3,metal:.3,clearcoat:1,glow:.8,pattern:'galaxy'}},
+    {n:'Holo',v:{color:'#b44bff',rough:.05,metal:.9,clearcoat:1,glow:1.2,pattern:'swirl'}},
+    {n:'Retro',v:{color:'#f0e6d0',rough:.4,metal:0,clearcoat:.5,glow:0,pattern:'retro'}}
+   ].map(p=>`<div class="sw" title="${p.n}" data-ballpreset='${JSON.stringify(p.v)}' style="background:${p.v.color}"></div>`).join('')+`</div>`;
+  h+=`<h3>COLOR</h3><div class="swatches">`+BALL_SWATCH.map(x=>`<div class="sw" data-ballcolor="${x}" style="background:${x}"></div>`).join('')+
+   `<input type="color" id="bcPick" value="${c.color}"></div>`;
+  h+=`<h3>MATERIAL</h3>`+
+   sliderRow('ROUGHNESS','bRough',0,1,0.02,c.rough)+
+   sliderRow('METALLIC','bMetal',0,1,0.02,c.metal)+
+   sliderRow('CLEARCOAT','bCoat',0,1,0.02,c.clearcoat)+
+   sliderRow('GLOW','bGlow',0,5,0.1,c.glow);
+  h+=`<h3>PATTERN</h3><div class="swatches" style="gap:6px">`+PATTERNS.map(p=>`<div class="btn small ${c.pattern===p?'pink':''}" data-ballpat="${p}" style="min-width:0">${p.toUpperCase()}</div>`).join('')+`</div>`;
+  h+=`<h3>PHYSICS</h3>`+
+   sliderRow('HOOK STRENGTH','bHook',0,2,0.05,c.hook)+
+   sliderRow('FRICTION','bFric',0.5,1.6,0.05,c.friction)+
+   sliderRow('SIZE','bSize',0.9,1.15,0.01,c.size);
+  h+=`<div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap"><div class="btn small" id="bRand">🎲 RANDOMIZE BALL</div><div class="btn small pink" id="bReset">RESET DEFAULT</div></div>`;}
+ if(custTab==='pins'){
+  const sel=CFG.pins.sel,c=CFG.pins.list[sel];
+  h+=`<h3>TARGET</h3><div class="swatches" style="gap:6px">`+
+   Array.from({length:10},(_,i)=>`<div class="btn small ${sel===i?'pink':''}" data-pinsel="${i}" style="min-width:0;padding:7px 11px">${i+1}</div>`).join('')+`</div>`;
+  h+=`<h3>BODY</h3><div class="swatches">`+['#f4f6f8','#111114','#c9cdd6','#00eaff','#ff2bd6','#b44bff','#39ff6a'].map(x=>`<div class="sw" data-pinbody="${x}" style="background:${x}"></div>`).join('')+
+   `<input type="color" id="pinBodyPick" value="${c.body}"></div>`;
+  h+=`<h3>STRIPE</h3><div class="swatches">`+NEON_HEX.map(x=>`<div class="sw" data-pinstripe="${x}" style="background:${x}"></div>`).join('')+
+   `<input type="color" id="pinStripePick" value="${c.stripe}"></div>`+
+   sliderRow('STRIPE COUNT','pinStripes',0,2,1,c.stripes)+
+   sliderRow('STRIPE GLOW','pinGlow',0,3,0.1,c.glow);
+  h+=`<h3>FACE</h3><div class="swatches" style="gap:6px">`+FACE_LIST.map(f=>`<div class="btn small ${c.face===f?'pink':''}" data-pinface="${f}" style="min-width:0">${f.toUpperCase()}</div>`).join('')+`</div>`;
+  h+=`<h3>COSTUME</h3><div class="swatches" style="gap:6px">`+ACC_LIST.map(a=>`<div class="btn small ${c.acc===a?'pink':''}" data-pinacc="${a}" style="min-width:0">${a.toUpperCase()}</div>`).join('')+`</div>`;
+  h+=`<div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap">
+   <div class="btn small" data-pinact="all">APPLY TO ALL</div>
+   <div class="btn small" data-pinact="randone">🎲 THIS PIN</div>
+   <div class="btn small" data-pinact="randsame">🎲 RANDOM SET</div>
+   <div class="btn small pink" data-pinact="differ">MAKE EVERY PIN DIFFERENT</div></div>`;}
+ if(custTab==='lane'){
+  const l=CFG.lane;
+  h+=`<h3>WOOD TONE</h3><div class="swatches">`+['#2a1a0e','#1c120a','#101418','#1a1024','#0e1a14'].map(x=>`<div class="sw" data-lanewood="${x}" style="background:${x}"></div>`).join('')+
+   `<input type="color" id="lanePick" value="${l.wood}"></div>`+
+   sliderRow('GLOSS / REFLECTION','lGloss',0,1,0.02,l.gloss)+
+   sliderRow('MARKING BRIGHTNESS','lMark',0,1.5,0.05,l.markings)+
+   sliderRow('FOG / DARKNESS','lFog',0,0.16,0.005,l.fog)+
+   sliderRow('PIN ILLUMINATION','lPin',0,2.5,0.05,l.pinLight);}
+ if(custTab==='env'){
+  const e=CFG.env;
+  h+=`<h3>ATMOSPHERE PRESETS</h3><div class="presetRow">`+Object.keys(ENV_PRESETS).map(p=>`<div class="btn small ${e.preset===p?'pink':''}" data-envpreset="${p}">${p.toUpperCase()}</div>`).join('')+`</div>`;
+  h+=`<h3>LANE LIGHTS</h3><div class="swatches">`+NEON_HEX.map(x=>`<div class="sw" data-envprimary="${x}" style="background:${x}"></div>`).join('')+
+   `<input type="color" id="envPrimPick" value="${e.primary}"></div>`+
+   sliderRow('BRIGHTNESS','envBright',0.2,2,0.05,e.brightness)+
+   `<div class="row"><label>ANIMATION</label><select id="envAnim">${['static','pulse','breath','flicker','chase'].map(a=>`<option ${e.anim===a?'selected':''}>${a}</option>`).join('')}</select></div>`+
+   sliderRow('SPEED','envSpeed',0.2,3,0.1,e.speed);
+  h+=`<h3>ACCENT / WALL LIGHTS</h3><div class="swatches">`+NEON_HEX.map(x=>`<div class="sw" data-envsecondary="${x}" style="background:${x}"></div>`).join('')+
+   `<input type="color" id="envSecPick" value="${e.secondary}"></div>`;
+  h+=`<h3>NEON SIGNS</h3><div id="signList">`+e.signs.map((s,i)=>`
+   <div class="signRow">
+    <input type="text" data-sign="${i}" data-k="text" value="${s.text.replace(/"/g,'&quot;')}" maxlength="18">
+    <input type="color" data-sign="${i}" data-k="color" value="${s.color}">
+    <select data-sign="${i}" data-k="anim">${['static','pulse','flicker','breath','flash','cycle','chase'].map(a=>`<option ${s.anim===a?'selected':''}>${a}</option>`).join('')}</select>
+    <select data-sign="${i}" data-k="anchor">${['BACK C','BACK L','BACK R','WALL L','WALL R','OVERHEAD'].map((n,ai)=>`<option value="${ai}" ${s.anchor===ai?'selected':''}>${n}</option>`).join('')}</select>
+    <div class="btn small pink" data-signdel="${i}" style="padding:6px 10px">✕</div>
+   </div>`).join('')+`</div>
+   <div class="btn small" id="addSign" style="margin-top:6px">+ ADD SIGN</div>`;}
+ b.innerHTML=h;
+  wireCust();
+  rebuildPreview();}
+ // Return a complete randomized pin appearance for the randomization actions.
+ function randPinCfg(){return{body:pick(['#f4f6f8','#111114','#c9cdd6','#00eaff','#ff2bd6','#b44bff','#39ff6a','#ff8a2b']),
+ stripe:pick(NEON_HEX),stripes:Math.floor(rnd(0,3)),glow:rnd(0,1.6),face:pick(FACE_LIST),acc:pick(ACC_LIST)};}
+ // Attach handlers to the controls generated by renderCustBody().
+ function wireCust(){
+  const b=$('#custBody');
+  // Ball controls update the material immediately and persist each change.
+  b.querySelectorAll('[data-ballpreset]').forEach(el=>el.onclick=()=>{Object.assign(CFG.ball,JSON.parse(el.dataset.ballpreset));applyBallLook();rebuildPreview();renderCustBody();save();});
+ b.querySelectorAll('[data-ballcolor]').forEach(el=>el.onclick=()=>{CFG.ball.color=el.dataset.ballcolor;applyBallLook();rebuildPreview();renderCustBody();save();});
+ const bp=$('#bcPick');if(bp)bp.oninput=()=>{CFG.ball.color=bp.value;applyBallLook();rebuildPreview();save();};
+ const bind=(id,key,after)=>{const el=$('#'+id);if(el)el.oninput=()=>{CFG.ball[key]=parseFloat(el.value);after();save();};};
+ bind('bRough','rough',()=>{applyBallLook();rebuildPreview();});
+ bind('bMetal','metal',()=>{applyBallLook();rebuildPreview();});
+ bind('bCoat','clearcoat',()=>{applyBallLook();rebuildPreview();});
+ bind('bGlow','glow',()=>{applyBallLook();rebuildPreview();});
+ bind('bHook','hook',null);bind('bFric','friction',null);
+ bind('bSize','size',()=>{ballMesh.scale.setScalar(CFG.ball.size);});
+ b.querySelectorAll('[data-ballpat]').forEach(el=>el.onclick=()=>{CFG.ball.pattern=el.dataset.ballpat;applyBallLook();rebuildPreview();renderCustBody();save();});
+ const br=$('#bRand');if(br)br.onclick=()=>{Object.assign(CFG.ball,{color:pick(BALL_SWATCH),rough:rnd(0,.6),metal:rnd(0,1),clearcoat:rnd(.3,1),glow:rnd(0,2.5),pattern:pick(PATTERNS)});applyBallLook();renderCustBody();save();};
+  const brs=$('#bReset');if(brs)brs.onclick=()=>{Object.assign(CFG.ball,{color:'#14141c',rough:.14,metal:.25,clearcoat:1,glow:0,pattern:'none',size:1,hook:1,friction:1});ballMesh.scale.setScalar(1);applyBallLook();renderCustBody();save();};
+  // Pin controls modify the selected pin, then redraw decorations and the preview.
+  b.querySelectorAll('[data-pinsel]').forEach(el=>el.onclick=()=>{CFG.pins.sel=parseInt(el.dataset.pinsel);renderCustBody();save();});
+ b.querySelectorAll('[data-pinbody]').forEach(el=>el.onclick=()=>{CFG.pins.list[CFG.pins.sel].body=el.dataset.pinbody;refreshPins();renderCustBody();});
+ b.querySelectorAll('[data-pinstripe]').forEach(el=>el.onclick=()=>{CFG.pins.list[CFG.pins.sel].stripe=el.dataset.pinstripe;refreshPins();renderCustBody();});
+ const pB=$('#pinBodyPick');if(pB)pB.oninput=()=>{CFG.pins.list[CFG.pins.sel].body=pB.value;refreshPins();};
+ const pS=$('#pinStripePick');if(pS)pS.oninput=()=>{CFG.pins.list[CFG.pins.sel].stripe=pS.value;refreshPins();};
+ const pStr=$('#pinStripes');if(pStr)pStr.oninput=()=>{CFG.pins.list[CFG.pins.sel].stripes=parseInt(pStr.value);refreshPins();};
+ const pG=$('#pinGlow');if(pG)pG.oninput=()=>{CFG.pins.list[CFG.pins.sel].glow=parseFloat(pG.value);refreshPins();};
+ b.querySelectorAll('[data-pinface]').forEach(el=>el.onclick=()=>{CFG.pins.list[CFG.pins.sel].face=el.dataset.pinface;refreshPins();renderCustBody();});
+ b.querySelectorAll('[data-pinacc]').forEach(el=>el.onclick=()=>{CFG.pins.list[CFG.pins.sel].acc=el.dataset.pinacc;refreshPins();renderCustBody();});
+  b.querySelectorAll('[data-pinact]').forEach(el=>el.onclick=()=>{
+  const a=el.dataset.pinact;
+  if(a==='all')CFG.pins.list=Array.from({length:10},()=>({...CFG.pins.list[CFG.pins.sel]}));
+  if(a==='randone')CFG.pins.list[CFG.pins.sel]=randPinCfg();
+  if(a==='randsame'){const r=randPinCfg();CFG.pins.list=Array.from({length:10},()=>({...r}));}
+  if(a==='differ')CFG.pins.list=Array.from({length:10},randPinCfg);
+   decorateAllPins();renderCustBody();save();});
+  // All pin changes share this refresh path so scene and preview stay synchronized.
+  function refreshPins(){decorateAllPins();rebuildPreview();save();}
+  // Lane sliders rebuild only the affected procedural lane material or environment fog/light.
+  b.querySelectorAll('[data-lanewood]').forEach(el=>el.onclick=()=>{CFG.lane.wood=el.dataset.lanewood;applyLane();renderCustBody();save();});
+ const lP=$('#lanePick');if(lP)lP.oninput=()=>{CFG.lane.wood=lP.value;applyLane();save();};
+ const lbind=(id,key,after)=>{const el=$('#'+id);if(el)el.oninput=()=>{CFG.lane[key]=parseFloat(el.value);after();save();};};
+  lbind('lGloss','gloss',applyLane);lbind('lMark','markings',applyLane);lbind('lFog','fog',applyEnv);lbind('lPin','pinLight',applyEnv);
+  // Environment changes update both the main renderer and the preview's rim lights.
+  b.querySelectorAll('[data-envpreset]').forEach(el=>el.onclick=()=>applyPreset(el.dataset.envpreset));
+ b.querySelectorAll('[data-envprimary]').forEach(el=>el.onclick=()=>{CFG.env.primary=el.dataset.envprimary;CFG.env.preset='Custom';applyEnv();rebuildPreview();renderCustBody();save();});
+ b.querySelectorAll('[data-envsecondary]').forEach(el=>el.onclick=()=>{CFG.env.secondary=el.dataset.envsecondary;CFG.env.preset='Custom';applyEnv();rebuildPreview();renderCustBody();save();});
+ const ep=$('#envPrimPick');if(ep)ep.oninput=()=>{CFG.env.primary=ep.value;CFG.env.preset='Custom';applyEnv();rebuildPreview();save();};
+ const es=$('#envSecPick');if(es)es.oninput=()=>{CFG.env.secondary=es.value;CFG.env.preset='Custom';applyEnv();rebuildPreview();save();};
+ const eb=$('#envBright');if(eb)eb.oninput=()=>{CFG.env.brightness=parseFloat(eb.value);save();};
+ const ea=$('#envAnim');if(ea)ea.onchange=()=>{CFG.env.anim=ea.value;CFG.env.preset='Custom';save();};
+ const esp=$('#envSpeed');if(esp)esp.oninput=()=>{CFG.env.speed=parseFloat(esp.value);save();};
+ b.querySelectorAll('[data-sign]').forEach(el=>{
+  const i=parseInt(el.dataset.sign),k=el.dataset.k;
+  el.addEventListener('change',()=>{CFG.env.signs[i][k]=k==='anchor'?parseInt(el.value):el.value;buildSigns();save();});});
+ b.querySelectorAll('[data-signdel]').forEach(el=>el.onclick=()=>{CFG.env.signs.splice(parseInt(el.dataset.signdel),1);buildSigns();renderCustBody();save();});
+ const as=$('#addSign');if(as)as.onclick=()=>{if(CFG.env.signs.length>=5)return;
+  CFG.env.signs.push({text:'NEON',color:pick(NEON_HEX),anim:'pulse',anchor:0});buildSigns();renderCustBody();save();};}
+
+/* ================= settings UI ================= */
+// Copy saved settings into the form, then use one conversion map for all change handlers.
+ function initSettingsUI(){
+ const s=CFG.set;
+ $('#sQuality').value=s.quality;$('#sBloom').checked=s.bloom;$('#sBloomStr').value=s.bloomStr;
+ $('#sShadows').checked=s.shadows;$('#sFps').value=String(s.fps);$('#sFireworks').checked=s.fireworks;
+ $('#sExposure').value=s.exposure;$('#sAmbient').value=s.ambient;$('#sRimLevel').value=s.rimLevel;
+ $('#sBloomRadius').value=s.bloomRadius;$('#sBloomThreshold').value=s.bloomThreshold;
+ $('#sShadowQuality').value=s.shadowQuality;$('#sDust').checked=s.dust;
+ $('#sFollowDist').value=s.followDist;$('#sFollowHeight').value=s.followHeight;$('#sSmooth').value=s.smooth;$('#sFov').value=s.fov;
+ $('#sShake').checked=s.shake;$('#sSlowmo').checked=s.slowmo;$('#sBumper').checked=s.bumper;$('#sAim').checked=s.aim;$('#sSens').value=s.sens;$('#sPinStr').value=s.pinStr;
+ $('#sMaster').value=s.master;$('#sSfx').value=s.sfx;$('#sRoll').value=s.roll;
+ const map={sQuality:['quality',v=>v,applyQuality],sBloom:['bloom',v=>v,applyQuality],sBloomStr:['bloomStr',parseFloat,applyQuality],
+  sShadows:['shadows',v=>v,applyQuality],sFps:['fps',v=>parseInt(v)],sFireworks:['fireworks',v=>v],
+  sExposure:['exposure',parseFloat,applyLighting],sAmbient:['ambient',parseFloat,applyLighting],sRimLevel:['rimLevel',parseFloat,applyLighting],
+  sBloomRadius:['bloomRadius',parseFloat,applyLighting],sBloomThreshold:['bloomThreshold',parseFloat,applyLighting],
+  sShadowQuality:['shadowQuality',v=>v,applyLighting],sDust:['dust',v=>v,applyLighting],
+  sFollowDist:['followDist',parseFloat],sFollowHeight:['followHeight',parseFloat],sSmooth:['smooth',parseFloat],sFov:['fov',parseFloat],
+  sShake:['shake',v=>v],sSlowmo:['slowmo',v=>v],sBumper:['bumper',v=>v],sAim:['aim',v=>v],sSens:['sens',parseFloat],sPinStr:['pinStr',parseFloat],
+  sMaster:['master',parseFloat,()=>{if(AU.master)AU.master.gain.value=CFG.set.master;}],
+  sSfx:['sfx',parseFloat,()=>{if(AU.sfx)AU.sfx.gain.value=CFG.set.sfx;}],
+  sRoll:['roll',parseFloat]};
+ for(const id in map){const el=$('#'+id);const [key,conv,cb]=map[id];
+  el.addEventListener('change',()=>{CFG.set[key]=conv(el.type==='checkbox'?el.checked:el.value);if(cb)cb();save();});}
+ $('#sReset').onclick=()=>{localStorage.removeItem(SAVE_KEY);location.reload();};
+  $('#settingsBack').onclick=()=>{$('#settings').classList.add('hidden');$('#menu').classList.remove('hidden');AU.click();};}
+ // Translate quality and post-processing preferences into renderer and shadow-map settings.
+ function applyQuality(){
+ const q=CFG.set.quality;
+ const pr={low:0.75,medium:1,high:Math.min(devicePixelRatio,1.5),ultra:Math.min(devicePixelRatio,2)}[q];
+ renderer.setPixelRatio(pr);composer.setPixelRatio(pr);
+ renderer.setSize(innerWidth,innerHeight);composer.setSize(innerWidth,innerHeight);
+ bloomPass.enabled=CFG.set.bloom;bloomPass.strength=CFG.set.bloomStr;
+ pinSpot.castShadow=CFG.set.shadows;
+ renderer.shadowMap.enabled=CFG.set.shadows;
+ laneMat.needsUpdate=true;}
+ // Base intensities the lighting sliders scale from — matches the values the rig was built with.
+ const LIGHT_BASE={amb:0.28,hemi:0.22,dir:0.18,rim:12};
+ // Translate the global lighting settings into exposure, light intensities, bloom shape, shadow resolution, and dust.
+ function applyLighting(){
+ const s=CFG.set;
+ renderer.toneMappingExposure=s.exposure;
+ amb.intensity=LIGHT_BASE.amb*s.ambient;
+ hemi.intensity=LIGHT_BASE.hemi*s.ambient;
+ dirL.intensity=LIGHT_BASE.dir*s.ambient;
+ rimL.intensity=LIGHT_BASE.rim*s.rimLevel;
+ rimR.intensity=LIGHT_BASE.rim*s.rimLevel;
+ bloomPass.radius=s.bloomRadius;
+ bloomPass.threshold=s.bloomThreshold;
+ const size={low:512,medium:1024,high:2048,ultra:4096}[s.shadowQuality]||1024;
+ if(pinSpot.shadow.mapSize.width!==size){pinSpot.shadow.mapSize.set(size,size);
+  pinSpot.shadow.map?.dispose();pinSpot.shadow.map=null;}
+ dustPts.visible=s.dust;}
+
+/* ================= input ================= */
+// Pointer dragging charges power while horizontal motion adjusts aim; keyboard controls mirror it.
+ let charging=false,chargeT=0,dragX=null;
+ // Triangle wave gives the hold-to-charge control a timing challenge instead of a one-way fill.
+ const triWave=t=>{const p=t*0.9%2;return p<1?p:2-p;};
+ // Register pointer, wheel, keyboard, and button controls for the current aiming state.
+ function initInput(){
+ const cv=renderer.domElement;
+  // Pointer input works for both mouse and touch-capable browsers.
+  cv.addEventListener('pointerdown',e=>{AU.init();
+  if(state!=='aim')return;
+  charging=true;chargeT=0;dragX=e.clientX;cv.setPointerCapture(e.pointerId);});
+ cv.addEventListener('pointermove',e=>{
+  if(!charging||state!=='aim')return;
+  const dx=e.clientX-dragX;dragX=e.clientX;
+  aimAngle=clamp(aimAngle+dx*0.0011*CFG.set.sens,-0.26,0.26);});
+ cv.addEventListener('pointerup',e=>{
+  if(charging&&state==='aim'){
+   $('#inPower').value=Math.round(30+68*triWave(chargeT));
+   charging=false;$('#chargeFill').style.width='0%';
+   launchBall();}
+  charging=false;});
+ cv.addEventListener('wheel',e=>{if(state!=='aim')return;
+  $('#inPower').value=clamp(parseFloat($('#inPower').value)-Math.sign(e.deltaY)*4,0,100);},{passive:true});
+  // Keyboard shortcuts provide an accessible alternative to dragging on the lane.
+  addEventListener('keydown',e=>{
+  AU.init();
+  if(state!=='aim')return;
+  if(e.code==='ArrowLeft')aimAngle=clamp(aimAngle-0.01*CFG.set.sens,-0.26,0.26);
+  if(e.code==='ArrowRight')aimAngle=clamp(aimAngle+0.01*CFG.set.sens,-0.26,0.26);
+  if(e.code==='ArrowUp')$('#inPower').value=clamp(parseFloat($('#inPower').value)+3,0,100);
+  if(e.code==='ArrowDown')$('#inPower').value=clamp(parseFloat($('#inPower').value)-3,0,100);
+  if(e.code==='KeyA'){startX=clamp(startX-0.02,-0.36,0.36);ballRoot.position.x=startX;}
+  if(e.code==='KeyD'){startX=clamp(startX+0.02,-0.36,0.36);ballRoot.position.x=startX;}
+  if(e.code==='Space'&&!charging){charging=true;chargeT=0;e.preventDefault();}
+  if(e.code==='Enter')launchBall();});
+ addEventListener('keyup',e=>{
+  if(e.code==='Space'&&charging){charging=false;$('#chargeFill').style.width='0%';
+   if(state==='aim'){$('#inPower').value=Math.round(30+68*triWave(chargeT));launchBall();}}});
+ $('#throwBtn').onclick=()=>{AU.init();if(state==='aim')launchBall();};
+ $('#quitBtn').onclick=()=>{AU.click();toMenu();};}
+
+/* ================= UI screens ================= */
+// Return to the menu and stop gameplay-only overlays and rolling audio.
+ function toMenu(){state='menu';$('#hud').classList.add('hidden');$('#hint').classList.add('hidden');
+ $('#over').classList.add('hidden');$('#menu').classList.remove('hidden');AU.setRoll(0);}
+ // Show the game HUD and reset all frame/physics state for the selected mode.
+ function startGame(mode){
+ AU.init();AU.click();
+ $('#menu').classList.add('hidden');$('#over').classList.add('hidden');
+ $('#hud').classList.remove('hidden');$('#hint').classList.remove('hidden');
+ resetGame(mode);}
+ // Menu actions only switch panels; gameplay initialization remains centralized in startGame().
+ document.querySelectorAll('[data-mode]').forEach(el=>el.onclick=()=>startGame(el.dataset.mode));
+$('#btnCustomize').onclick=()=>{AU.init();AU.click();$('#menu').classList.add('hidden');$('#customize').classList.remove('hidden');custTab='ball';
+ document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.tab==='ball'));renderCustBody();};
+$('#btnSettings').onclick=()=>{AU.init();AU.click();$('#menu').classList.add('hidden');$('#settings').classList.remove('hidden');};
+$('#btnHow').onclick=()=>{AU.click();$('#menu').classList.add('hidden');$('#howto').classList.remove('hidden');};
+$('#howBack').onclick=()=>{AU.click();$('#howto').classList.add('hidden');$('#menu').classList.remove('hidden');};
+$('#custBack').onclick=()=>{AU.click();$('#customize').classList.add('hidden');$('#menu').classList.remove('hidden');};
+$('#overAgain').onclick=()=>startGame(game.mode);
+$('#overMenu').onclick=()=>toMenu();
+document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{AU.click();custTab=t.dataset.tab;
+ document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x===t));renderCustBody();});
+
+/* ================= main loop ================= */
+// Toggle used to approximate a 30 FPS render cadence while physics still uses elapsed time.
+let fpsSkip=false;
+// The single animation loop updates visuals, simulation, UI feedback, camera, and both renderers.
+ function animate(){
+ requestAnimationFrame(animate);
+  // Skip every other render when the user selects the 30 FPS limit.
+  if(CFG.set.fps===30){fpsSkip=!fpsSkip;if(fpsSkip)return;}
+ const rdt=Math.min(clock.getDelta(),0.05);
+ let dt=rdt;
+  // Slow motion affects simulation dt, while rdt keeps UI animation and timers responsive.
+  if(slowmoT>0){slowmoT-=rdt;timeScale=lerp(timeScale,0.35,0.3);}
+ else timeScale=lerp(timeScale,1,0.12);
+ dt*=timeScale;
+ const t=performance.now()/1000;
+  // Calculate the shared pulse used by neon materials for the selected environment animation.
+  let pulse=1;const e=CFG.env;
+ if(e.anim==='pulse')pulse=0.75+0.25*Math.sin(t*e.speed*2.4);
+ if(e.anim==='breath')pulse=0.6+0.4*Math.sin(t*e.speed*1.1);
+ if(e.anim==='flicker')pulse=Math.random()<0.06?0.35:0.92+Math.random()*0.08;
+ if(e.anim==='chase')pulse=0.7+0.3*Math.sin(t*e.speed*4);
+  // Apply the environment pulse and temporary bumper flashes to all registered neon materials.
+  for(const n of neonMats){
+  let boost=0;
+  if(n.isBumper!==undefined){boost=bumperFlash[n.isBumper]*3;
+   n.mat.color.copy(n.base).multiplyScalar(e.brightness*pulse+boost);}
+  else n.mat.color.copy(n.base).multiplyScalar(e.brightness*pulse);}
+ bumperFlash[0]=Math.max(0,bumperFlash[0]-rdt*3);
+ bumperFlash[1]=Math.max(0,bumperFlash[1]-rdt*3);
+  // Signs have independent animation modes, so their opacity/color is updated separately.
+  signMeshes.forEach((s,i)=>{const a=s.cfg.anim;const m=s.mesh.material;let o=1;
+  if(a==='pulse')o=0.55+0.45*Math.sin(t*e.speed*2.4+i);
+  if(a==='breath')o=0.45+0.55*Math.sin(t*e.speed+i*2);
+  if(a==='flicker')o=Math.random()<0.09?rnd(.1,.4):1;
+  if(a==='flash')o=Math.sin(t*e.speed*6+i)>0?1:0.15;
+  if(a==='chase')o=0.3+0.7*Math.max(0,Math.sin(t*e.speed*3-i*1.7));
+  m.opacity=o;
+  if(a==='cycle')m.color.setHSL((t*e.speed*0.1+i*0.3)%1,1,0.65);else m.color.set('#ffffff');});
+  // Add tiny flicker to overhead light cones and drift the atmospheric dust points.
+  lightCones.forEach((c,i)=>{c.material.opacity=0.016+0.006*Math.sin(t*1.4+i*1.7)+(Math.random()<0.004?0.008:0);});
+ {const pa=dustPts.geometry.attributes.position.array;
+  for(let i=0;i<pa.length;i+=3){pa[i]+=Math.sin(t*0.3+i)*0.0006;pa[i+1]+=Math.cos(t*0.2+i)*0.0004;}
+  dustPts.geometry.attributes.position.needsUpdate=true;}
+ for(let i=0;i<TRAIL_N;i++){const s=trailSprites[i];
+  const idx=trailPos.length-1-i*2;
+  if(state==='rolling'&&idx>=0){const p=trailPos[idx];s.position.set(p.x,p.y+0.02,p.z);
+   s.material.opacity=damp(s.material.opacity,0.5*(1-i/TRAIL_N),8,rdt);}
+  else s.material.opacity=damp(s.material.opacity,0,6,rdt);}
+  // Physics runs at two substeps per render to reduce tunneling during fast collisions.
+  if(state==='rolling'||state==='settle'){
+  const sub=2;for(let s=0;s<sub;s++){physicsStep(dt/sub);pinStep(dt/sub);}
+  if(state==='rolling'&&rollSettled()){state='settle';setTimeout(endThrow,500);}
+ }else if(state==='aim'||state==='menu'){
+  pinStep(dt);}
+  // Charging uses real time so the player's release timing is not distorted by slow motion.
+  if(charging){chargeT+=rdt;const v=triWave(chargeT);
+  $('#chargeFill').style.width=(v*100)+'%';}
+ ballLight.position.set(ballRoot.position.x,0.35,ballRoot.position.z);
+ ballLight.intensity=state==='rolling'?2.6:1.2;
+ updateParticles(dt);
+ updateConfetti(dt,t);
+ updateFireworks(dt);
+ updateCamera(dt,rdt);
+  // Render the preview only while its screen is visible to avoid unnecessary GPU work.
+  if(pvRenderer&&!$('#customize').classList.contains('hidden')){
+  pvGroup.rotation.y+=rdt*0.9;
+  pvRenderer.render(pvScene,pvCam);}
+ composer.render();
+}
+
+/* ================= boot ================= */
+// Build static resources first, then connect UI handlers and start the perpetual render loop.
+buildEnvironment();
+buildPins();
+buildBall();
+initParticles();
+initTrail();
+initConfetti();
+initFireworks();
+initPreview();
+initSettingsUI();
+initInput();
+applyEnv();applyLane();applyQuality();applyLighting();
+fullRack(true);
+buildScorebar();
+animate();
+</script>
+</body>
+</html>

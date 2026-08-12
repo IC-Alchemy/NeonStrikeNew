@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>NEON STRIKE — Bowling</title>
+<!-- Orbitron supplies the futuristic headings; Rajdhani keeps the controls readable. -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/orbitron@5/index.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/rajdhani@5/index.css">
+<link rel="stylesheet" href="css/style.css">
+<!-- Pin the Three.js version so the module and addon imports stay compatible. -->
+<script type="importmap">
+{"imports":{
+ "three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+ "three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+}}
+</script>
+</head>
+<body>
+<!-- The renderer owns this background layer; the remaining elements are UI overlays. -->
+<div id="scene"></div>
+<div id="vignette"></div>
+
+<!-- HUD: score, mode, throw controls, and the exit action shown during a game. -->
+<div id="hud" class="hidden">
+  <div id="scorebar"></div>
+  <div id="frameinfo">FRAME 1</div>
+  <div id="bigscore">0</div>
+  <div id="modechip">CLASSIC</div>
+  <!-- Coin balance + one-tap upgrade, so the shop is reachable between throws. -->
+  <div id="coinbox">
+    <div id="coincount"><span class="coin">◉</span><span id="coinval">0</span></div>
+    <div id="ballchip">1 BALL</div>
+    <button id="buyBallBtn">+1 BALL · 50 ◉</button>
+    <div id="coinpop"></div>
+  </div>
+  <button id="quitBtn">✕ MENU</button>
+  <div id="controls">
+    <!-- Aim buttons anchor each group to its outer edge (space-between) so they stay off the lane centerline. -->
+    <div class="ctlGroup">
+      <button id="aimLeftBtn" class="aimBtn" aria-label="Aim left">◀</button>
+      <div class="ctl"><label>POWER</label><input type="range" id="inPower" min="0" max="100" value="68"><div id="chargeWrap"><div id="chargeFill"></div></div></div>
+    </div>
+    <button id="throwBtn">THROW</button>
+    <div class="ctlGroup">
+      <div class="ctl"><label>SPIN ◀ ─ ▶</label><input type="range" id="inSpin" min="-100" max="100" value="0"></div>
+      <button id="aimRightBtn" class="aimBtn" aria-label="Aim right">▶</button>
+    </div>
+  </div>
+</div>
+<div id="hint" class="hidden">◀ ▶ OR DRAG TO AIM · HOLD THROW TO CHARGE · RELEASE TO LAUNCH · [A/D] POSITION · [←/→] AIM</div>
+<div id="banner"></div>
+
+<!-- MAIN MENU: entry point for the three game modes and secondary screens. -->
+<div id="menu" class="screen">
+  <h1 class="logo">NEON STRIKE</h1>
+  <div class="sub">MIDNIGHT · NEON · BOWLING</div>
+  <div class="modes">
+    <div class="btn" data-mode="classic">CLASSIC</div>
+    <div class="btn" data-mode="practice">PRACTICE</div>
+    <div class="btn pink" data-mode="chaos">CHAOS</div>
+  </div>
+  <div class="btn" id="btnShop">UPGRADES <span id="menuCoins"></span></div>
+  <div class="btn" id="btnCustomize">CUSTOMIZE</div>
+  <div class="btn" id="btnSettings">SETTINGS</div>
+  <div class="btn" id="btnHow">HOW TO PLAY</div>
+</div>
+
+<!-- UPGRADE SHOP: spend strike/spare coins on extra balls per throw. -->
+<div id="shop" class="screen hidden">
+  <div class="panel">
+    <h2>UPGRADE SHOP</h2>
+    <div id="shopBal"><span class="coin">◉</span><span id="shopCoins">0</span> <small>COINS</small></div>
+    <div class="shopitem">
+      <div class="shopinfo">
+        <div class="shopname">MULTIBALL</div>
+        <div class="shopdesc">Roll more than one ball on every throw. The first upgrade puts <b>2 balls</b> on the lane at once; each one after that adds another.</div>
+        <div class="shopown">CURRENTLY ROLLING: <b id="shopOwned">1 BALL</b></div>
+      </div>
+      <div class="shopbuy">
+        <div class="shopcost"><span id="shopCost">50</span> ◉</div>
+        <div class="btn small" id="shopBuyBalls">BUY</div>
+      </div>
+    </div>
+    <div id="shopNote">Earn coins by scoring: <b>STRIKE = 10 ◉</b> · <b>SPARE = 5 ◉</b>. Coins and upgrades are saved automatically.</div>
+    <div style="text-align:center;margin-top:20px"><div class="btn small" id="shopBack">BACK</div></div>
+  </div>
+</div>
+
+<!-- HOW TO PLAY: concise control and scoring reference for first-time players. -->
+<div id="howto" class="screen hidden">
+  <div class="panel">
+    <h2>HOW TO PLAY</h2>
+    <div class="howlist">
+      <b>AIM</b> — drag on the lane, use ← / → keys, or follow the glowing guide line.<br>
+      <b>POSITION</b> — A / D keys shift your starting spot on the approach.<br>
+      <b>POWER</b> — use the slider, scroll wheel, or <b>hold</b> on the lane to charge (it oscillates — release at the right moment).<br>
+      <b>SPIN</b> — the spin slider adds hook. The ball curves more as it travels down-lane.<br>
+      <b>THROW</b> — release your drag, press SPACE, or hit the THROW button.<br>
+      <b>BUMPERS</b> — bouncing bumper gutters are ON by default. Toggle them in Settings → Gameplay.<br>
+      <b>STRIKES</b> — knock down all ten pins on your first throw and the alley rains confetti. 🎉<br>
+      <b>COINS</b> — every strike pays <b>10 ◉</b> and every spare pays <b>5 ◉</b>. They keep adding up between games.<br>
+      <b>UPGRADES</b> — spend <b>50 ◉</b> in the shop to roll <b>2 balls at once</b>, and another 50 for each extra ball after that (up to 6).<br><br>
+      Strikes, spares and the 10th-frame bonus are scored by the rules.
+      Everything you customize — ball, pins, costumes, lane, neon signs — is saved automatically.
+    </div>
+    <div style="text-align:center;margin-top:20px"><div class="btn small" id="howBack">BACK</div></div>
+  </div>
+</div>
+
+<!-- SETTINGS: persistent graphics, camera, gameplay, and audio preferences. -->
+<div id="settings" class="screen hidden">
+  <div class="panel">
+    <h2>SETTINGS</h2>
+    <h3>GRAPHICS</h3>
+    <div class="row"><label>QUALITY</label><select id="sQuality"><option value="low">LOW</option><option value="medium">MEDIUM</option><option value="high">HIGH</option><option value="ultra">ULTRA</option></select></div>
+    <div class="row"><label>BLOOM</label><input type="checkbox" id="sBloom"></div>
+    <div class="row"><label>BLOOM STRENGTH</label><input type="range" id="sBloomStr" min="0" max="1.5" step="0.05"></div>
+    <div class="row"><label>SHADOWS</label><input type="checkbox" id="sShadows"></div>
+    <div class="row"><label>FPS LIMIT</label><select id="sFps"><option value="60">60</option><option value="30">30</option></select></div>
+    <div class="row"><label>FIREWORKS</label><input type="checkbox" id="sFireworks"></div>
+    <h3>LIGHTING</h3>
+    <div class="row"><label>EXPOSURE</label><input type="range" id="sExposure" min="0.5" max="2.5" step="0.05"></div>
+    <div class="row"><label>AMBIENT BRIGHTNESS</label><input type="range" id="sAmbient" min="0.2" max="2" step="0.05"></div>
+    <div class="row"><label>RIM LIGHT INTENSITY</label><input type="range" id="sRimLevel" min="0" max="2.5" step="0.05"></div>
+    <div class="row"><label>BLOOM RADIUS</label><input type="range" id="sBloomRadius" min="0" max="1" step="0.05"></div>
+    <div class="row"><label>BLOOM THRESHOLD</label><input type="range" id="sBloomThreshold" min="0" max="1" step="0.05"></div>
+    <div class="row"><label>SHADOW QUALITY</label><select id="sShadowQuality"><option value="low">LOW</option><option value="medium">MEDIUM</option><option value="high">HIGH</option><option value="ultra">ULTRA</option></select></div>
+    <div class="row"><label>ATMOSPHERIC DUST</label><input type="checkbox" id="sDust"></div>
+    <h3>CAMERA</h3>
+    <div class="row"><label>FOLLOW DISTANCE</label><input type="range" id="sFollowDist" min="0.5" max="2" step="0.05"></div>
+    <div class="row"><label>FOLLOW HEIGHT</label><input type="range" id="sFollowHeight" min="0.4" max="2" step="0.05"></div>
+    <div class="row"><label>SMOOTHNESS</label><input type="range" id="sSmooth" min="1" max="10" step="0.5"></div>
+    <div class="row"><label>FIELD OF VIEW</label><input type="range" id="sFov" min="45" max="85" step="1"></div>
+    <div class="row"><label>CAMERA SHAKE</label><input type="checkbox" id="sShake"></div>
+    <div class="row"><label>IMPACT SLOW-MO</label><input type="checkbox" id="sSlowmo"></div>
+    <h3>GAMEPLAY</h3>
+    <div class="row"><label>BUMPER GUTTERS</label><input type="checkbox" id="sBumper"></div>
+    <div class="row"><label>AIM ASSIST</label><input type="checkbox" id="sAim"></div>
+    <div class="row"><label>THROW SENSITIVITY</label><input type="range" id="sSens" min="0.4" max="2" step="0.1"></div>
+    <div class="row"><label>PIN PHYSICS STRENGTH</label><input type="range" id="sPinStr" min="0.5" max="2" step="0.05"></div>
+    <h3>AUDIO</h3>
+    <div class="row"><label>MASTER VOLUME</label><input type="range" id="sMaster" min="0" max="1" step="0.05"></div>
+    <div class="row"><label>SFX VOLUME</label><input type="range" id="sSfx" min="0" max="1" step="0.05"></div>
+    <div class="row"><label>ROLL VOLUME</label><input type="range" id="sRoll" min="0" max="1" step="0.05"></div>
+    <div style="display:flex;gap:10px;margin-top:18px;flex-wrap:wrap">
+      <div class="btn small pink" id="sReset">RESET ALL SAVED DATA</div>
+      <div class="btn small" id="settingsBack">BACK</div>
+    </div>
+  </div>
+</div>
+
+<!-- CUSTOMIZE: the preview canvas and dynamic controls for visual styling. -->
+<div id="customize" class="screen hidden">
+  <div class="panel">
+    <div class="tabs">
+      <div class="tab active" data-tab="ball">BALL</div>
+      <div class="tab" data-tab="pins">PINS</div>
+      <div class="tab" data-tab="lane">LANE</div>
+      <div class="tab" data-tab="env">NEON &amp; SIGNS</div>
+    </div>
+    <div class="grid2">
+      <div id="previewWrap"><canvas id="preview" width="600" height="600"></canvas><div style="font-family:Orbitron;font-size:9px;letter-spacing:.3em;color:#5f8b9a">3D PREVIEW</div></div>
+      <div id="custBody"></div>
+    </div>
+    <div style="text-align:center;margin-top:18px"><div class="btn small" id="custBack">BACK TO MENU</div></div>
+  </div>
+</div>
+
+<!-- GAME OVER: final score and restart/menu actions after the tenth frame. -->
+<div id="over" class="screen hidden">
+  <h1 class="logo" style="font-size:clamp(28px,6vw,52px)">GAME OVER</h1>
+  <div class="sub">FINAL SCORE</div>
+  <div style="font-family:Orbitron;font-size:72px;color:#fff;text-shadow:0 0 20px var(--neon),0 0 60px var(--neon);margin-bottom:30px" id="finalScore">0</div>
+  <div class="btn" id="overAgain">PLAY AGAIN</div>
+  <div class="btn" id="overMenu">MAIN MENU</div>
+</div>
+
+<script type="module" src="js/main.js"></script>
+</body>
+</html>
