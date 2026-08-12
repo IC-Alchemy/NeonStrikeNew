@@ -3,6 +3,7 @@ import {CFG} from './core/config.js';
 import {initThree, initLights, Scene, ballLight} from './scene/setup.js';
 import {buildEnvironment, applyEnv, applyLane, Env, neonMats} from './scene/environment.js';
 import {buildFixedSigns, buildSigns} from './scene/signs.js';
+import {buildAtmosphere, updateAtmosphere} from './scene/atmosphere.js';
 import {buildBall, initTrail, Ball, trailSprites, TRAIL_N, trailState} from './entities/ball.js';
 import {buildPins, fullRack} from './entities/pins.js';
 import {initParticles, updateParticles} from './fx/particles.js';
@@ -31,6 +32,9 @@ buildEnvironment();
 // between scene/environment.js and scene/signs.js).
 buildFixedSigns();
 buildSigns();
+// Atmosphere (smoke, light shafts, lane reflections, sparkles) reads Env.softDotTex and so must
+// run after buildEnvironment(); it lives outside that file to keep the import direction one-way.
+buildAtmosphere();
 buildPins();
 buildBall();
 initParticles();
@@ -86,8 +90,9 @@ function animate(){
   if(a==='chase')o=0.3+0.7*Math.max(0,Math.sin(t*e.speed*3-i*1.7));
   m.opacity=o;
   if(a==='cycle')m.color.setHSL((t*e.speed*0.1+i*0.3)%1,1,0.65);else m.color.set('#ffffff');});
-  // Add tiny flicker to overhead light cones and drift the atmospheric dust points.
-  Env.lightCones.forEach((c,i)=>{c.material.opacity=0.016+0.006*Math.sin(t*1.4+i*1.7)+(Math.random()<0.004?0.008:0);});
+  // Smoke, light shafts, lane reflections, aurora and sparkles all advance together.
+  // rdt (not dt) so the room keeps breathing at a natural rate during impact slow-motion.
+  updateAtmosphere(t,rdt);
  {const pa=Env.dustPts.geometry.attributes.position.array;
   for(let i=0;i<pa.length;i+=3){pa[i]+=Math.sin(t*0.3+i)*0.0006;pa[i+1]+=Math.cos(t*0.2+i)*0.0004;}
   Env.dustPts.geometry.attributes.position.needsUpdate=true;}
@@ -119,5 +124,7 @@ function animate(){
   if(pvRenderer&&!$('#customize').classList.contains('hidden')){
   pvGroup.rotation.y+=rdt*0.9;
   pvRenderer.render(pvScene,pvCam);}
+ // Grain is animated, so the grade pass needs the wall clock every frame.
+ Scene.gradePass.uniforms.time.value=t;
  Scene.composer.render();
 }

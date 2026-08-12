@@ -5,9 +5,11 @@
 html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:'Rajdhani',sans-serif;color:#cfe9f2;user-select:none}
 #scene{position:fixed;inset:0}
 canvas{display:block;touch-action:none}
-/* The vignette is a non-interactive layer that keeps attention on the lane. */
+/* The vignette is a non-interactive layer that keeps attention on the lane. It is deliberately
+   light now: the main falloff is done in the render's grade pass (js/scene/postfx.js), and
+   stacking two strong vignettes crushed the corners of the HUD. */
 #vignette{position:fixed;inset:0;pointer-events:none;z-index:5;
- background:radial-gradient(ellipse at 50% 45%,transparent 55%,rgba(0,0,5,.55) 100%)}
+ background:radial-gradient(ellipse at 50% 45%,transparent 62%,rgba(0,0,6,.3) 100%)}
 /* Menu-like screens share the same full-screen fade and hidden state. */
 .screen{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
  background:radial-gradient(ellipse at 50% 110%,rgba(10,16,30,.55),rgba(0,0,0,.86) 70%);

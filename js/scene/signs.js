@@ -18,7 +18,9 @@ export function signTexture(text,color){
  const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;return t;
 }
 export function makeSignMesh(text,color,w=2.6,h=0.56){
- const m=new THREE.MeshBasicMaterial({map:signTexture(text,color),transparent:true,toneMapped:false,depthWrite:false,side:THREE.DoubleSide});
+ // fog:false is required, not cosmetic — the signs sit on the back wall ~21m away, and exponential
+ // fog at the alley's smoke density would swallow them completely. Neon reads *through* the smoke.
+ const m=new THREE.MeshBasicMaterial({map:signTexture(text,color),transparent:true,toneMapped:false,depthWrite:false,fog:false,side:THREE.DoubleSide});
  return new THREE.Mesh(new THREE.PlaneGeometry(w,h),m);
 }
 // Fixed signs are part of the alley set and do not appear in the editable sign list.

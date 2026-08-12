@@ -55,6 +55,50 @@ Several `let` bindings at module scope get **reassigned** (not just mutated) by 
 
 If asked to split this file, follow REFACTOR_PLAN.md: wrap these into shared mutable objects (e.g. `Scene = {renderer:null, camera:null, ...}`) and mutate properties instead of rebinding the `let`, before doing the physical file split. Import direction should stay one-way: `core → scene → fx/entities → game → ui → main`.
 
+## Lighting & atmosphere
+
+The alley is authored as a **dark, smoke-filled 1950s room** lit almost entirely by neon, with one
+warm pool of light on the pin deck. Brightness problems in this project are almost always caused by
+adding light rather than by removing it, so before turning any intensity up, check these four
+places — they are what keep the lane from blowing out to white:
+
+1. **`scene/setup.js` → `darkRoomEnvTexture()`** — the `RoomEnvironment` IBL is dimmed to
+   `IBL_LEVEL` (0.14) *before* the PMREM bake. Every reflective surface inherits that darkness.
+   Materials that must stay readable compensate with a high `envMapIntensity` (ball 4.5, pins 2.6)
+   rather than by raising the IBL.
+2. **`scene/setup.js` → `initLights()`** — every light is a *pool*: short `distance`, high `decay`,
+   narrow spot angle. The pin spot is 26cd/0.44rad (it was 55cd/0.62rad, which flooded the lane).
+3. **`core/config.js` → `set.bloomThreshold`** (0.58) — high enough that only genuinely emissive
+   neon crosses it. Dropping it back toward 0.3 makes the lane itself bloom.
+4. **`scene/environment.js` → `applyLane()`** — lane `envMapIntensity` is capped at ~0.42. A
+   clearcoated lane reflecting a bright environment is what produced the original whiteout.
+
+Two things pull the opposite way and are just as easy to get wrong:
+
+- **`CFG.lane.fog` is `FogExp2`, so it is quadratic in distance.** 0.095 looked reasonable at the
+  foul line and left the pin deck ~95% fogged — pins and back-wall signs vanished entirely. Keep it
+  near 0.045 (≈50% at the deck) and get smoke depth from the atmosphere billboards instead.
+- **Emissive things set `fog:false`.** `neonMat()`, the sign material, the lane markings and every
+  additive element in `atmosphere.js` opt out of fog. Additive geometry blended toward a fog colour
+  turns muddy brown rather than fading, which is what made the light shafts look like solid wedges;
+  neon is also the only thing giving the far end of the lane shape, so it must punch through.
+
+`scene/atmosphere.js` owns everything atmospheric: camera-facing smoke billboards, gradient-mapped
+light shafts, the deck light pool, fake neon reflections on the lane, the aurora curtain behind the
+pins, and the sparkle motes. It's built from `main.js` right after `buildEnvironment()` (it reads
+`Env.softDotTex`) and is driven once per frame by `updateAtmosphere(t, rdt)` — deliberately passed
+real time, not scaled time, so the room keeps breathing during impact slow-motion. Import direction
+is one-way: `atmosphere.js` imports `Env`, never the reverse.
+
+`scene/postfx.js` is a single `ShaderPass` (vignette + film grain + edge chromatic aberration +
+cold shadow lift) inserted **between** `UnrealBloomPass` and `OutputPass`, so it operates on the
+linear HDR image and `OutputPass` still owns tone mapping and the sRGB conversion. Its `time`
+uniform is updated every frame in `main.js`.
+
+If you change a base light intensity in `initLights()`, update `LIGHT_BASE` in `ui/settings.js`
+to match — the lighting sliders multiply against it, and a mismatch means a slider at 1.0 no longer
+reproduces the authored look.
+
 ## Game model
 
 - Standard ten-frame bowling scoring (strikes, spares, 10th-frame bonus rolls) — see `cumulative()`, `decideAction()`, `frameSymbols()`.
@@ -69,6 +113,7 @@ If asked to split this file, follow REFACTOR_PLAN.md: wrap these into shared mut
 
 - `CFG` (from `defaultConfig()`) holds all user-customizable state: ball material/pattern, 10 pin skins, lane appearance, environment/neon presets and up to 5 custom signs, the wallet (`coins`, `balls`), and the full settings panel (graphics, lighting, camera, gameplay, audio).
 - Persisted to `localStorage` under `SAVE_KEY = 'neonstrike_v2'` via `save()`/`load()`. Loading is defensive: `copyKnown()` only copies fields whose type matches the default, so corrupt or outdated saves fall back to defaults field-by-field rather than failing wholesale.
+- **`SAVE_VERSION` is 3** (dark-alley lighting pass, then the fog correction). Any save below the current version has `load()` skip exactly the fields listed in `VISUAL_KEYS` and take the current defaults instead; everything the player actually chose — ball, pins, signs, camera, audio, wallet — still carries over. Any future change that retunes the authored look should bump `SAVE_VERSION` and extend `VISUAL_KEYS` the same way, rather than silently changing a default that existing saves will override.
 - Audio is entirely procedural (oscillators + filtered noise via Web Audio), lazily initialized on first user gesture (`AU.init()`) — no audio assets.
 
 ## Conventions to preserve when editing

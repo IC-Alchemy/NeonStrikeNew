@@ -84,7 +84,9 @@ export function ballTexture(pattern,hex){
 // Create the ball, aiming guide, and their shared parent at the approach start.
 export function buildBall(){
  Ball.root=new THREE.Group();Scene.scene.add(Ball.root);
- Ball.mat=new THREE.MeshPhysicalMaterial({color:0xffffff,roughness:.15,metalness:.2,clearcoat:1,clearcoatRoughness:.12,envMapIntensity:1.5});
+ // envMapIntensity is high to compensate for the deliberately dark room IBL (see scene/setup.js):
+ // in a near-black alley the ball would otherwise read as a flat silhouette with no highlight.
+ Ball.mat=new THREE.MeshPhysicalMaterial({color:0xffffff,roughness:.15,metalness:.2,clearcoat:1,clearcoatRoughness:.1,envMapIntensity:4.5,iridescence:.4,iridescenceIOR:1.6});
  applyBallLook();
  Ball.mesh=new THREE.Mesh(new THREE.SphereGeometry(BALL_R,48,32),Ball.mat);
  Ball.mesh.castShadow=true;Ball.mesh.position.y=BALL_R;Ball.root.add(Ball.mesh);

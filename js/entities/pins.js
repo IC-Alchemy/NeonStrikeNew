@@ -95,7 +95,9 @@ export function makeMouth(type){
 // A Pin owns both its rendered group and the simple planar state used by the physics solver.
 export class Pin{
  constructor(i){this.i=i;this.group=new THREE.Group();
- this.bodyMat=new THREE.MeshStandardMaterial({color:'#fff',roughness:.32,metalness:.04,envMapIntensity:.9});
+ // Raised envMapIntensity for the same reason as the ball: the room IBL is now very dark, and the
+ // pins are the one thing at the end of the lane that has to stay crisp and readable.
+ this.bodyMat=new THREE.MeshStandardMaterial({color:'#fff',roughness:.3,metalness:.04,envMapIntensity:2.6});
  this.body=new THREE.Mesh(pinGeo,this.bodyMat);this.body.castShadow=true;this.group.add(this.body);
  this.decor=new THREE.Group();this.group.add(this.decor);
  this.stripeMat=new THREE.MeshStandardMaterial({color:'#f0f',roughness:.4,emissive:'#f0f',emissiveIntensity:.3});
