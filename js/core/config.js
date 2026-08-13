@@ -29,7 +29,7 @@ export const defaultConfig=()=>({
  lane:{wood:'#691f79',gloss:0.9,markings:0.7,fog:0.045,pinLight:1.0},
  env:{preset:'Midnight Alley',primary:'#8fd8ff',secondary:'#ff9ad5',brightness:1,anim:'breath',speed:1,signs:[
    {text:'NEON STRIKE',color:'#02f91b',anim:'flicker',anchor:0},
-   {text:'BOWLING',color:'#fb0707',anim:'breath',anchor:1},
+   {text:'WOW!',color:'#fb0707',anim:'breath',anchor:1},
    {text:'LANE 03',color:'#fffb00',anim:'pulse',anchor:2}]},
  // Coins are earned by strikes/spares and spent in the upgrade shop; `balls` is how many
  // bowling balls launch on a single throw (1 by default, raised one at a time by purchases).
