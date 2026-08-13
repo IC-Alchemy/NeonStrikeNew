@@ -26,11 +26,11 @@ export const defaultConfig=()=>({
  // Heavier fog + a darker board than v1: the alley is meant to fall away into smoke.
  // FogExp2 is quadratic in distance: 0.095 hid the pins and the back-wall signs completely
  // (~95% fogged at 18m). 0.045 lands near 50% at the pin deck — smoky, still readable.
- lane:{wood:'#241408',gloss:0.9,markings:0.7,fog:0.045,pinLight:1.0},
+ lane:{wood:'#691f79',gloss:0.9,markings:0.7,fog:0.045,pinLight:1.0},
  env:{preset:'Midnight Alley',primary:'#8fd8ff',secondary:'#ff9ad5',brightness:1,anim:'breath',speed:1,signs:[
-   {text:'BOWLING',color:'#ffcf5a',anim:'flicker',anchor:0},
-   {text:'MIDNIGHT LANES',color:'#ff9ad5',anim:'breath',anchor:1},
-   {text:'LANE 01',color:'#8fd8ff',anim:'pulse',anchor:2}]},
+   {text:'NEON STRIKE',color:'#02f91b',anim:'flicker',anchor:0},
+   {text:'BOWLING',color:'#fb0707',anim:'breath',anchor:1},
+   {text:'LANE 03',color:'#fffb00',anim:'pulse',anchor:2}]},
  // Coins are earned by strikes/spares and spent in the upgrade shop; `balls` is how many
  // bowling balls launch on a single throw (1 by default, raised one at a time by purchases).
  wallet:{coins:0,balls:1},
@@ -38,12 +38,12 @@ export const defaultConfig=()=>({
  // only genuinely emissive neon crosses it, so the lane and the smoke can never bloom into a
  // white sheet the way a 0.3 threshold allowed. haze/sparkle drive scene/atmosphere.js, while
  // vignette controls the clean, grain-free grade pass in scene/postfx.js.
- set:{quality:'high',bloom:true,bloomStr:0.62,shadows:true,fps:60,fireworks:true,
-       exposure:0.92,ambient:0.8,rimLevel:0.95,bloomRadius:0.78,bloomThreshold:0.58,shadowQuality:'medium',dust:true,
-       haze:1,sparkle:1,vignette:0.85,
+ set:{quality:'high',bloom:true,bloomStr:0.32,shadows:true,fps:60,fireworks:true,
+       exposure:0.92,ambient:0.8,rimLevel:0.95,bloomRadius:0.78,bloomThreshold:0.38,shadowQuality:'medium',dust:true,
+       haze:.1,sparkle:1,vignette:0.85,
        // Lower followDist/followHeight and a snappier smooth pull the default roll-cam much
        // tighter to the ball; still fully adjustable per-player in Settings -> Camera.
-       followDist:0.6,followHeight:0.75,smooth:6.5,fov:58,shake:true,slowmo:true,
+       followDist:0.6,followHeight:0.25,smooth:6.5,fov:58,shake:true,slowmo:true,
        bumper:true,aim:true,sens:1,pinStr:1,master:0.8,sfx:0.9,roll:0.7}
 });
 export const CFG=defaultConfig();

@@ -165,15 +165,18 @@ function wireCust(){
  const as=$('#addSign');if(as)as.onclick=()=>{if(CFG.env.signs.length>=5)return;
   CFG.env.signs.push({text:'NEON',color:pick(NEON_HEX),anim:'pulse',anchor:0});buildSigns();renderCustBody();save();};
 }
+// Keep every newly selected customization tab at its own top instead of inheriting
+// the previous tab's scroll position on a small, vertically stacked layout.
+function resetCustomizeScroll(){const screen=$('#customize');if(screen)screen.scrollTop=0;}
 // Wire up the customize tab buttons in the DOM (originally in the "UI screens" section of
 // the monolith). Exported so ui/screens.js can call it once during boot wiring.
 export function initCustomizeTabs(){
  document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{AU.click();custTab=t.dataset.tab;
-  document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x===t));renderCustBody();});
+  document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x===t));resetCustomizeScroll();renderCustBody();});
 }
 // Reset to the ball tab and re-highlight it; called by ui/screens.js's "CUSTOMIZE" menu button.
 export function openCustomizeOnBallTab(){
  custTab='ball';
- document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.tab==='ball'));
+ document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.tab==='ball'));resetCustomizeScroll();
  renderCustBody();
 }

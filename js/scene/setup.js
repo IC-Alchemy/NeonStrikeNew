@@ -16,7 +16,7 @@ import {GradeShader} from './postfx.js';
 export const Scene={renderer:null,scene:null,camera:null,composer:null,bloomPass:null,gradePass:null,clock:null};
 
 // World units are meters; keeping lane and pin dimensions together makes collision bounds consistent.
-export const LANE_W=1.05,HALF=LANE_W/2,LANE_L=18,PIT_Z=18.25,PIN_Z0=16.35,PIN_SP=0.3048,BALL_R=0.108;
+export const LANE_W=1.55,HALF=LANE_W/2,LANE_L=18,PIT_Z=18.25,PIN_Z0=16.35,PIN_SP=0.3048,BALL_R=0.108;
 // pin containment bounds (invisible deck walls — pins can never leave the deck)
 export const DECK_X=0.72,DECK_ZB=PIT_Z-0.12,DECK_ZF=14.7;
 export const staticMeshes=[];
@@ -79,12 +79,12 @@ export function initLights(){
  Scene.scene.add(pinSpot,pinSpot.target);
  // Just enough cold light on the approach to read the ball and the player's hands.
  approachSpot=new THREE.SpotLight(0x8fa6cc,3.2,8,0.7,0.95,2.2);approachSpot.position.set(0,3.6,1.2);approachSpot.target.position.set(0,0,2.2);Scene.scene.add(approachSpot,approachSpot.target);
- ballLight=new THREE.PointLight(0x00eaff,2,3.4);Scene.scene.add(ballLight);
+ ballLight=new THREE.PointLight(0x00eaff,1,3.4);Scene.scene.add(ballLight);
  rimL=new THREE.PointLight(0xff2bd6,13,6.5,2.0);rimL.position.set(-1.5,1.05,PIN_Z0+0.7);Scene.scene.add(rimL);
  rimR=new THREE.PointLight(0x00eaff,13,6.5,2.0);rimR.position.set(1.5,1.05,PIN_Z0+0.7);Scene.scene.add(rimR);
  // Low lilac uplight behind the deck — the "future magic" backing glow that separates the pins
  // from the black back wall without adding any general brightness to the lane.
- deckWash=new THREE.PointLight(0xb98bff,8,5.5,2.2);deckWash.position.set(0,0.35,PIT_Z-0.5);Scene.scene.add(deckWash);
+ deckWash=new THREE.PointLight(0xb98bff,3,5.5,2.2);deckWash.position.set(0,0.35,PIT_Z-0.5);Scene.scene.add(deckWash);
  // Two dim practicals partway down the lane. They exist to be *seen through the smoke* — each one
  // gives the haze something to catch so the tunnel reads as deep rather than as an empty black gap.
  midLampA=new THREE.PointLight(0xffc98a,2.4,5.2,2.3);midLampA.position.set(0,2.9,6.2);Scene.scene.add(midLampA);
