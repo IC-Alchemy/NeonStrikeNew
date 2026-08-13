@@ -124,7 +124,5 @@ function animate(){
   if(pvRenderer&&!$('#customize').classList.contains('hidden')){
   pvGroup.rotation.y+=rdt*0.9;
   pvRenderer.render(pvScene,pvCam);}
- // Grain is animated, so the grade pass needs the wall clock every frame.
- Scene.gradePass.uniforms.time.value=t;
  Scene.composer.render();
 }

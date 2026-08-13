@@ -1,0 +1,279 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NeonStrike Improvement Map</title>
+<style>
+:root{
+  color-scheme:dark;
+  --bg:#090a12;
+  --panel:#111420;
+  --panel-2:#171b2a;
+  --line:#2b3045;
+  --text:#f4f5ff;
+  --muted:#a8afc7;
+  --cyan:#61e7ff;
+  --pink:#ff6edb;
+  --yellow:#ffe27a;
+  --green:#8bf5b1;
+  --shadow:0 24px 70px rgba(0,0,0,.34);
+}
+*{box-sizing:border-box}
+body{
+  margin:0;
+  min-height:100vh;
+  background:
+    radial-gradient(circle at 88% 8%,rgba(255,70,190,.14),transparent 28rem),
+    radial-gradient(circle at 8% 38%,rgba(70,220,255,.10),transparent 30rem),
+    var(--bg);
+  color:var(--text);
+  font:15px/1.55 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+}
+button{font:inherit;color:inherit}
+.shell{width:min(1180px,calc(100% - 36px));margin:0 auto;padding:46px 0 70px}
+.eyebrow,.label,.meta,.filter,.preset,.stat{font-size:11px;font-weight:750;letter-spacing:.13em;text-transform:uppercase}
+.eyebrow{color:var(--cyan);margin-bottom:14px}
+h1,h2,h3,p{margin:0}
+h1{max-width:760px;font-size:clamp(36px,6vw,72px);line-height:.98;letter-spacing:-.055em}
+.hero-copy{max-width:660px;color:var(--muted);font-size:17px;margin-top:22px}
+.stats{display:flex;flex-wrap:wrap;gap:10px;margin-top:28px}
+.stat{border:1px solid var(--line);border-radius:999px;padding:8px 12px;color:var(--muted);background:rgba(17,20,32,.72)}
+.stat strong{color:var(--text);margin-right:4px}
+.toolbar{display:flex;align-items:center;justify-content:space-between;gap:18px;margin:55px 0 20px;padding:14px 16px;border:1px solid var(--line);border-radius:16px;background:rgba(17,20,32,.82);box-shadow:var(--shadow)}
+.filters,.presets{display:flex;align-items:center;flex-wrap:wrap;gap:8px}
+.toolbar-label{color:var(--muted);font-size:13px;margin-right:4px}
+.filter,.preset{cursor:pointer;border:1px solid var(--line);border-radius:999px;padding:8px 12px;background:transparent;color:var(--muted);transition:.2s ease}
+.filter:hover,.preset:hover{border-color:var(--cyan);color:var(--text)}
+.filter.active,.preset.active{border-color:var(--cyan);color:var(--bg);background:var(--cyan)}
+.layout{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(290px,.65fr);gap:22px;align-items:start}
+.ideas{display:grid;gap:14px}
+.group-label{display:flex;align-items:center;gap:12px;margin:10px 0 2px;color:var(--muted)}
+.group-label::after{content:"";height:1px;flex:1;background:var(--line)}
+.group-label span{color:var(--text);font-size:13px;font-weight:700;letter-spacing:.08em;text-transform:uppercase}
+.idea{position:relative;display:block;width:100%;text-align:left;padding:22px 23px;border:1px solid var(--line);border-radius:18px;background:linear-gradient(135deg,rgba(23,27,42,.95),rgba(15,17,28,.92));cursor:pointer;transition:transform .2s ease,border-color .2s ease,background .2s ease;overflow:hidden}
+.idea::before{content:"";position:absolute;inset:0 auto 0 0;width:3px;background:var(--accent,var(--cyan));opacity:.5}
+.idea:hover{transform:translateY(-2px);border-color:#59617f}
+.idea.selected{border-color:var(--accent,var(--cyan));background:linear-gradient(135deg,rgba(34,39,60,.98),rgba(17,20,32,.96));box-shadow:0 12px 35px rgba(0,0,0,.22)}
+.idea.hidden{display:none}
+.idea-top{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:11px}
+.number{display:inline-grid;place-items:center;width:29px;height:29px;border-radius:9px;color:var(--bg);background:var(--accent,var(--cyan));font-weight:850}
+.meta{color:var(--muted);font-size:10px}
+.idea h3{font-size:21px;letter-spacing:-.025em;margin-bottom:7px}
+.idea p{color:var(--muted);max-width:690px}
+.idea-foot{display:flex;flex-wrap:wrap;gap:8px;margin-top:17px}
+.chip{border:1px solid var(--line);border-radius:999px;padding:4px 8px;color:#d7dbed;font-size:12px}
+.brief{position:sticky;top:22px;padding:25px;border:1px solid var(--line);border-radius:20px;background:linear-gradient(160deg,rgba(24,29,48,.98),rgba(13,15,25,.98));box-shadow:var(--shadow)}
+.brief .label{color:var(--pink);margin-bottom:16px}
+.brief h2{font-size:29px;line-height:1.05;letter-spacing:-.035em;margin-bottom:13px}
+.brief-copy{color:var(--muted)}
+.brief-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:22px 0}
+.brief-cell{padding:12px;border:1px solid var(--line);border-radius:12px;background:rgba(9,10,18,.35)}
+.brief-cell small{display:block;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px}
+.brief-cell strong{font-size:14px}
+.brief h3{font-size:13px;text-transform:uppercase;letter-spacing:.1em;margin-bottom:7px;color:var(--yellow)}
+.first-slice{color:#d9dcef}
+.copy{width:100%;margin-top:22px;border:0;border-radius:12px;padding:12px 15px;background:var(--pink);color:#210b1d;font-weight:800;cursor:pointer;transition:transform .2s ease,filter .2s ease}
+.copy:hover{filter:brightness(1.08);transform:translateY(-1px)}
+.status{min-height:21px;margin-top:9px;color:var(--green);font-size:13px;text-align:center}
+.footer-note{margin-top:31px;color:var(--muted);font-size:13px}
+@media(max-width:850px){
+  .toolbar{align-items:flex-start;flex-direction:column}
+  .layout{grid-template-columns:1fr}
+  .brief{position:static}
+}
+@media(max-width:520px){
+  .shell{width:min(100% - 24px,1180px);padding-top:30px}
+  h1{font-size:43px}
+  .hero-copy{font-size:15px}
+  .brief-grid{grid-template-columns:1fr}
+}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;transition:none!important}}
+</style>
+</head>
+<body>
+<main class="shell">
+  <header>
+    <div class="eyebrow">NEON STRIKE / IMPROVEMENT MAP</div>
+    <h1>Six upgrades with a clear order of attack.</h1>
+    <p class="hero-copy">The project already has a strong visual identity and a useful module split. These suggestions focus on player trust first, then the engineering foundation that makes future features safer to ship.</p>
+    <div class="stats" aria-label="Recommendation summary">
+      <span class="stat"><strong>03</strong> simple ways</span>
+      <span class="stat"><strong>03</strong> in-depth ways</span>
+      <span class="stat"><strong>1</strong> source of truth</span>
+    </div>
+  </header>
+
+  <section class="toolbar" aria-label="Recommendation filters and focus presets">
+    <div class="filters">
+      <span class="toolbar-label">Show</span>
+      <button class="filter active" data-filter="all">All six</button>
+      <button class="filter" data-filter="simple">Simple</button>
+      <button class="filter" data-filter="deep">In-depth</button>
+    </div>
+    <div class="presets">
+      <span class="toolbar-label">Focus</span>
+      <button class="preset" data-focus="trust">Player trust</button>
+      <button class="preset" data-focus="confidence">Engineering confidence</button>
+      <button class="preset" data-focus="platform">Long-term platform</button>
+    </div>
+  </section>
+
+  <div class="layout">
+    <section class="ideas" aria-label="Project improvement recommendations">
+      <div class="group-label"><span>Simple ways</span><small>small slices, visible payoff</small></div>
+      <button class="idea selected" data-id="save-export" data-level="simple" style="--accent:var(--cyan)">
+        <div class="idea-top"><span class="number">01</span><span class="meta">1–2 days · player trust</span></div>
+        <h3>Make saves portable</h3>
+        <p>Add Export Save and Import Save actions that use the existing versioned envelope, validate the JSON, and explain failures in plain language.</p>
+        <div class="idea-foot"><span class="chip">Builds on <code>neonstrike_v2</code></span><span class="chip">Easy to debug</span></div>
+      </button>
+
+      <button class="idea" data-id="boot-failure" data-level="simple" style="--accent:var(--pink)">
+        <div class="idea-top"><span class="number">02</span><span class="meta">1–2 days · resilience</span></div>
+        <h3>Fail loudly at boot</h3>
+        <p>Add a friendly loading and error panel for blocked CDN imports, missing WebGL support, and startup exceptions instead of leaving a blank scene.</p>
+        <div class="idea-foot"><span class="chip">Pinned CDN awareness</span><span class="chip">Better support reports</span></div>
+      </button>
+
+      <button class="idea" data-id="throw-feedback" data-level="simple" style="--accent:var(--yellow)">
+        <div class="idea-top"><span class="number">03</span><span class="meta">2–3 days · game feel</span></div>
+        <h3>Show a last-throw recap</h3>
+        <p>After each roll, surface power, aim, spin, pins knocked down, frame result, and coins earned in one compact HUD strip.</p>
+        <div class="idea-foot"><span class="chip">Teaches the controls</span><span class="chip">Makes rewards legible</span></div>
+      </button>
+
+      <div class="group-label"><span>More in-depth ways</span><small>larger payoff, staged work</small></div>
+      <button class="idea" data-id="simulation" data-level="deep" style="--accent:var(--green)">
+        <div class="idea-top"><span class="number">04</span><span class="meta">1–2 weeks · core architecture</span></div>
+        <h3>Extract a deterministic simulation core</h3>
+        <p>Separate scoring and physics state from Three.js and DOM code, use a fixed timestep, and seed random effects so throws can be replayed exactly.</p>
+        <div class="idea-foot"><span class="chip">Replayable bugs</span><span class="chip">Stable physics</span></div>
+      </button>
+
+      <button class="idea" data-id="regression" data-level="deep" style="--accent:var(--cyan)">
+        <div class="idea-top"><span class="number">05</span><span class="meta">1–2 weeks · release safety</span></div>
+        <h3>Build browser regression tests</h3>
+        <p>Add Playwright smoke tests for boot, Classic mode, a throw, customization, settings persistence, and the game-over path; run them in CI.</p>
+        <div class="idea-foot"><span class="chip">Catches broken selectors</span><span class="chip">Protects refactors</span></div>
+      </button>
+
+      <button class="idea" data-id="build-pipeline" data-level="deep" style="--accent:var(--pink)">
+        <div class="idea-top"><span class="number">06</span><span class="meta">2–4 weeks · platform</span></div>
+        <h3>Introduce an offline-ready build pipeline</h3>
+        <p>Move Three.js and fonts behind a pinned package/build workflow, add production bundles, and provide a service-worker or local asset fallback.</p>
+        <div class="idea-foot"><span class="chip">Less CDN fragility</span><span class="chip">Faster repeat loads</span></div>
+      </button>
+    </section>
+
+    <aside class="brief" aria-live="polite">
+      <div class="label">Selected direction</div>
+      <h2 id="brief-title">Make saves portable</h2>
+      <p class="brief-copy" id="brief-copy">Give players a safe way to move a customized setup between browsers and give developers a reproducible artifact when a save causes trouble.</p>
+      <div class="brief-grid">
+        <div class="brief-cell"><small>Outcome</small><strong id="brief-outcome">Player confidence</strong></div>
+        <div class="brief-cell"><small>Best first slice</small><strong id="brief-effort">Export only</strong></div>
+      </div>
+      <h3>First implementation slice</h3>
+      <p class="first-slice" id="brief-first">Add an Export button beside the reset action, serialize the current versioned envelope, and download it as <code>neonstrike-save.json</code>.</p>
+      <button class="copy" id="copy-brief">Copy implementation brief</button>
+      <div class="status" id="copy-status" role="status" aria-live="polite"></div>
+      <p class="footer-note">Suggested sequence: 01 → 02 → 04 → 05. This keeps player-facing risk low while building a safer foundation for bigger changes.</p>
+    </aside>
+  </div>
+</main>
+
+<script>
+const details={
+  'save-export':{
+    title:'Make saves portable',outcome:'Player confidence',effort:'Export only',
+    copy:'Give players a safe way to move a customized setup between browsers and give developers a reproducible artifact when a save causes trouble.',
+    first:'Add an Export button beside the reset action, serialize the current versioned envelope, and download it as neonstrike-save.json.'
+  },
+  'boot-failure':{
+    title:'Fail loudly at boot',outcome:'Fewer blank-screen failures',effort:'Startup guard',
+    copy:'Turn external dependency and WebGL failures into actionable feedback so players know whether to retry, enable WebGL, or reconnect to the network.',
+    first:'Wrap module startup in a visible loading state, catch initialization errors, and show the failing dependency plus a retry action.'
+  },
+  'throw-feedback':{
+    title:'Show a last-throw recap',outcome:'Clearer game feel',effort:'HUD strip',
+    copy:'Make the relationship between player input and the result visible. This helps new players learn aim, power, and spin without adding a tutorial wall.',
+    first:'Record the launch inputs and final pin count in game state, then render a dismissible recap after endThrow() completes.'
+  },
+  simulation:{
+    title:'Extract a deterministic simulation core',outcome:'Reproducible physics',effort:'State boundary',
+    copy:'Separate the rules that decide a throw from rendering and input. Deterministic stepping and seeded randomness make bugs, replays, and future multiplayer experiments tractable.',
+    first:'Define a serializable GameState and pure scoring reducer, then feed it from the existing physics loop before moving collision behavior behind an adapter.'
+  },
+  regression:{
+    title:'Build browser regression tests',outcome:'Safer releases',effort:'Boot smoke test',
+    copy:'Protect the modular browser surface with a small end-to-end suite. The highest-value tests are the flows most likely to break when DOM IDs or import order change.',
+    first:'Add one Playwright test that loads the app, starts Classic mode, performs a throw, and asserts the score/HUD changes before expanding coverage.'
+  },
+  'build-pipeline':{
+    title:'Introduce an offline-ready build pipeline',outcome:'Reliable distribution',effort:'Dev/prod split',
+    copy:'Replace runtime dependence on CDN availability with pinned local assets, repeatable production output, and an explicit deployment target.',
+    first:'Add a minimal Vite setup, pin Three.js locally, keep the current module folders, and make the first production build serve without network access.'
+  }
+};
+
+const cards=[...document.querySelectorAll('.idea')];
+const filters=[...document.querySelectorAll('.filter')];
+const presets=[...document.querySelectorAll('.preset')];
+const title=document.querySelector('#brief-title');
+const copy=document.querySelector('#brief-copy');
+const outcome=document.querySelector('#brief-outcome');
+const effort=document.querySelector('#brief-effort');
+const first=document.querySelector('#brief-first');
+const status=document.querySelector('#copy-status');
+let selected='save-export';
+let activeFilter='all';
+
+function selectIdea(id){
+  selected=id;
+  cards.forEach(card=>card.classList.toggle('selected',card.dataset.id===id));
+  const item=details[id];
+  title.textContent=item.title;
+  copy.textContent=item.copy;
+  outcome.textContent=item.outcome;
+  effort.textContent=item.effort;
+  first.textContent=item.first;
+  status.textContent='';
+}
+
+function applyFilter(filter){
+  activeFilter=filter;
+  filters.forEach(button=>button.classList.toggle('active',button.dataset.filter===filter));
+  cards.forEach(card=>card.classList.toggle('hidden',filter!=='all'&&card.dataset.level!==filter));
+  const selectedCard=cards.find(card=>card.dataset.id===selected);
+  if(selectedCard&&selectedCard.classList.contains('hidden')){
+    const next=cards.find(card=>!card.classList.contains('hidden'));
+    if(next)selectIdea(next.dataset.id);
+  }
+}
+
+filters.forEach(button=>button.addEventListener('click',()=>applyFilter(button.dataset.filter)));
+cards.forEach(card=>card.addEventListener('click',()=>selectIdea(card.dataset.id)));
+presets.forEach(button=>button.addEventListener('click',()=>{
+  presets.forEach(item=>item.classList.toggle('active',item===button));
+  const focus={trust:'save-export',confidence:'simulation',platform:'build-pipeline'}[button.dataset.focus];
+  applyFilter('all');
+  selectIdea(focus);
+}));
+
+document.querySelector('#copy-brief').addEventListener('click',async()=>{
+  const item=details[selected];
+  const text=`${item.title}: ${item.copy} First slice: ${item.first}`;
+  try{
+    await navigator.clipboard.writeText(text);
+    status.textContent='Copied to clipboard.';
+  }catch{
+    const area=document.createElement('textarea');
+    area.value=text;area.style.position='fixed';area.style.opacity='0';
+    document.body.appendChild(area);area.select();document.execCommand('copy');area.remove();
+    status.textContent='Copied to clipboard.';
+  }
+});
+</script>
+</body>
+</html>

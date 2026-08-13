@@ -49,16 +49,14 @@ export function initThree(){
  Scene.composer=new EffectComposer(Scene.renderer);Scene.composer.addPass(new RenderPass(Scene.scene,Scene.camera));
  Scene.bloomPass=new UnrealBloomPass(new THREE.Vector2(innerWidth,innerHeight),CFG.set.bloomStr,CFG.set.bloomRadius,CFG.set.bloomThreshold);
  Scene.composer.addPass(Scene.bloomPass);
- // Grade sits after bloom but before OutputPass so vignette/grain/aberration act on the linear
- // HDR image and OutputPass still owns tone mapping and the sRGB conversion.
+ // Grade sits after bloom but before OutputPass so the clean vignette/shadow lift acts on the
+ // linear HDR image and OutputPass still owns tone mapping and the sRGB conversion.
  Scene.gradePass=new ShaderPass(GradeShader);
- Scene.gradePass.uniforms.res.value.set(innerWidth,innerHeight);
  Scene.composer.addPass(Scene.gradePass);
  Scene.composer.addPass(new OutputPass());
  Scene.clock=new THREE.Clock();
  addEventListener('resize',()=>{Scene.camera.aspect=innerWidth/innerHeight;Scene.camera.updateProjectionMatrix();
-  Scene.renderer.setSize(innerWidth,innerHeight);Scene.composer.setSize(innerWidth,innerHeight);
-  Scene.gradePass.uniforms.res.value.set(innerWidth,innerHeight);});
+  Scene.renderer.setSize(innerWidth,innerHeight);Scene.composer.setSize(innerWidth,innerHeight);});
 }
 
 /* ================= lights ================= */
@@ -70,12 +68,12 @@ export function initThree(){
 // These are created lazily inside initLights() (called right after initThree()) because they need Scene.scene to exist.
 export let amb,hemi,dirL,pinSpot,approachSpot,ballLight,rimL,rimR,deckWash,midLampA,midLampB,magicKey;
 export function initLights(){
- amb=new THREE.AmbientLight(0x1a2138,0.11);Scene.scene.add(amb);
- hemi=new THREE.HemisphereLight(0x1d2740,0x04040a,0.09);Scene.scene.add(hemi);
+ amb=new THREE.AmbientLight(0x1a2138,0.06);Scene.scene.add(amb);
+ hemi=new THREE.HemisphereLight(0x1d2740,0x04040a,0.05);Scene.scene.add(hemi);
  dirL=new THREE.DirectionalLight(0x6478a8,0.06);dirL.position.set(3,7,3);Scene.scene.add(dirL);
  // Tighter cone (0.62 -> 0.44), shorter reach and steeper decay: a hard-edged pool on the deck
  // with real falloff into the dark instead of a 24m flood down the whole lane.
- pinSpot=new THREE.SpotLight(0xffd9a4,44,20,0.5,0.75,1.9);
+ pinSpot=new THREE.SpotLight(0xffd9a4,22,20,0.5,0.75,1.9);
  pinSpot.position.set(0,4.7,14.4);pinSpot.target.position.set(0,0,PIN_Z0);
  pinSpot.castShadow=true;pinSpot.shadow.mapSize.set(1024,1024);pinSpot.shadow.bias=-0.0004;pinSpot.shadow.radius=6;
  Scene.scene.add(pinSpot,pinSpot.target);

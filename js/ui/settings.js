@@ -14,7 +14,7 @@ export function initSettingsUI(){
  $('#sExposure').value=s.exposure;$('#sAmbient').value=s.ambient;$('#sRimLevel').value=s.rimLevel;
  $('#sBloomRadius').value=s.bloomRadius;$('#sBloomThreshold').value=s.bloomThreshold;
  $('#sShadowQuality').value=s.shadowQuality;$('#sDust').checked=s.dust;
- $('#sHaze').value=s.haze;$('#sSparkle').value=s.sparkle;$('#sGrain').value=s.grain;
+ $('#sHaze').value=s.haze;$('#sSparkle').value=s.sparkle;$('#sVignette').value=s.vignette;
  $('#sFollowDist').value=s.followDist;$('#sFollowHeight').value=s.followHeight;$('#sSmooth').value=s.smooth;$('#sFov').value=s.fov;
  $('#sShake').checked=s.shake;$('#sSlowmo').checked=s.slowmo;$('#sBumper').checked=s.bumper;$('#sAim').checked=s.aim;$('#sSens').value=s.sens;$('#sPinStr').value=s.pinStr;
  $('#sMaster').value=s.master;$('#sSfx').value=s.sfx;$('#sRoll').value=s.roll;
@@ -23,7 +23,7 @@ export function initSettingsUI(){
   sExposure:['exposure',parseFloat,applyLighting],sAmbient:['ambient',parseFloat,applyLighting],sRimLevel:['rimLevel',parseFloat,applyLighting],
   sBloomRadius:['bloomRadius',parseFloat,applyLighting],sBloomThreshold:['bloomThreshold',parseFloat,applyLighting],
   sShadowQuality:['shadowQuality',v=>v,applyLighting],sDust:['dust',v=>v,applyLighting],
-  sHaze:['haze',parseFloat,applyLighting],sSparkle:['sparkle',parseFloat,applyLighting],sGrain:['grain',parseFloat,applyLighting],
+  sHaze:['haze',parseFloat,applyLighting],sSparkle:['sparkle',parseFloat,applyLighting],sVignette:['vignette',parseFloat,applyLighting],
   sFollowDist:['followDist',parseFloat],sFollowHeight:['followHeight',parseFloat],sSmooth:['smooth',parseFloat],sFov:['fov',parseFloat],
   sShake:['shake',v=>v],sSlowmo:['slowmo',v=>v],sBumper:['bumper',v=>v],sAim:['aim',v=>v],sSens:['sens',parseFloat],sPinStr:['pinStr',parseFloat],
   sMaster:['master',parseFloat,()=>{if(AU.master)AU.master.gain.value=CFG.set.master;}],
@@ -49,7 +49,7 @@ export function applyQuality(){
 // rig with, so a slider at 1.0 reproduces the authored look exactly.
 const LIGHT_BASE={amb:0.11,hemi:0.09,dir:0.06,rim:13,deck:8,mid:2.4,key:1.6};
 // Translate the global lighting settings into exposure, light intensities, bloom shape, shadow
-// resolution, dust, atmosphere density, and the cinematic grade pass.
+// resolution, dust, atmosphere density, and the clean cinematic grade pass.
 export function applyLighting(){
  const s=CFG.set;
  Scene.renderer.toneMappingExposure=s.exposure;
@@ -67,8 +67,7 @@ export function applyLighting(){
  Scene.bloomPass.threshold=s.bloomThreshold;
  setAtmoLevels(s.haze,s.sparkle);
  const g=Scene.gradePass.uniforms;
- g.vignette.value=Math.min(s.grain*1.15,1.6);
- g.grain.value=s.grain;
+ g.vignette.value=Math.min(s.vignette*1.15,1.6);
  const size={low:512,medium:1024,high:2048,ultra:4096}[s.shadowQuality]||1024;
  if(pinSpot.shadow.mapSize.width!==size){pinSpot.shadow.mapSize.set(size,size);
   pinSpot.shadow.map?.dispose();pinSpot.shadow.map=null;}

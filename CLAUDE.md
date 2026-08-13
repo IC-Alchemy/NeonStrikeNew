@@ -90,10 +90,10 @@ pins, and the sparkle motes. It's built from `main.js` right after `buildEnviron
 real time, not scaled time, so the room keeps breathing during impact slow-motion. Import direction
 is one-way: `atmosphere.js` imports `Env`, never the reverse.
 
-`scene/postfx.js` is a single `ShaderPass` (vignette + film grain + edge chromatic aberration +
-cold shadow lift) inserted **between** `UnrealBloomPass` and `OutputPass`, so it operates on the
-linear HDR image and `OutputPass` still owns tone mapping and the sRGB conversion. Its `time`
-uniform is updated every frame in `main.js`.
+`scene/postfx.js` is a single clean `ShaderPass` (vignette + cold shadow lift) inserted **between**
+`UnrealBloomPass` and `OutputPass`, so it operates on the linear HDR image and `OutputPass` still
+owns tone mapping and the sRGB conversion. The pass intentionally adds no grain or chromatic
+aberration, keeping the rendered image crisp from centre to edge.
 
 If you change a base light intensity in `initLights()`, update `LIGHT_BASE` in `ui/settings.js`
 to match — the lighting sliders multiply against it, and a mismatch means a slider at 1.0 no longer

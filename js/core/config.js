@@ -9,7 +9,7 @@ import {clamp} from './helpers.js';
 // Version 3 pulls the fog back down: v2 shipped a density that hid the pins and signs entirely.
 export const SAVE_KEY='neonstrike_v2',SAVE_VERSION=3;
 const VISUAL_KEYS={
- set:['exposure','ambient','rimLevel','bloomStr','bloomRadius','bloomThreshold','haze','sparkle','grain'],
+ set:['exposure','ambient','rimLevel','bloomStr','bloomRadius','bloomThreshold','haze','sparkle','vignette'],
  lane:['fog','pinLight','gloss']
 };
 // Upgrade economy. Kept in core/config.js so both the save validator and the shop UI agree
@@ -36,11 +36,11 @@ export const defaultConfig=()=>({
  wallet:{coins:0,balls:1},
  // Lighting defaults are deliberately low-key. The high bloom threshold is the important one:
  // only genuinely emissive neon crosses it, so the lane and the smoke can never bloom into a
- // white sheet the way a 0.3 threshold allowed. haze/sparkle/grain drive scene/atmosphere.js
- // and the grade pass in scene/postfx.js.
+ // white sheet the way a 0.3 threshold allowed. haze/sparkle drive scene/atmosphere.js, while
+ // vignette controls the clean, grain-free grade pass in scene/postfx.js.
  set:{quality:'high',bloom:true,bloomStr:0.62,shadows:true,fps:60,fireworks:true,
        exposure:0.92,ambient:0.8,rimLevel:0.95,bloomRadius:0.78,bloomThreshold:0.58,shadowQuality:'medium',dust:true,
-       haze:1,sparkle:1,grain:0.85,
+       haze:1,sparkle:1,vignette:0.85,
        // Lower followDist/followHeight and a snappier smooth pull the default roll-cam much
        // tighter to the ball; still fully adjustable per-player in Settings -> Camera.
        followDist:0.6,followHeight:0.75,smooth:6.5,fov:58,shake:true,slowmo:true,
@@ -70,6 +70,10 @@ export function load(){try{const saved=JSON.parse(localStorage.getItem(SAVE_KEY)
  copyKnown(CFG.lane,s.lane,stale?VISUAL_KEYS.lane:null);
  copyKnown(CFG.env,s.env);
  copyKnown(CFG.set,s.set,stale?VISUAL_KEYS.set:null);
+ // v3 saves called the grade control "grain" even though it also set the vignette. Preserve that
+ // player's framing choice while dropping the obsolete film-grain setting from the new schema.
+ if(!stale&&isRecord(s.set)&&typeof s.set.vignette!=='number'&&typeof s.set.grain==='number'&&Number.isFinite(s.set.grain))
+  CFG.set.vignette=clamp(s.set.grain,0,2);
  // Wallet values are integers with hard bounds so a hand-edited save cannot grant infinite balls.
  copyKnown(CFG.wallet,s.wallet);
  CFG.wallet.coins=Math.max(0,Math.trunc(CFG.wallet.coins));
