@@ -4,6 +4,9 @@ import {Scene} from './setup.js';
 import {Env, neonMat} from './environment.js';
 
 /* ================= neon signs ================= */
+// Keep every background sign in the same visual proportion while making the alley lettering
+// easier to read from the approach camera.
+const SIGN_SCALE=1.3;
 // Each anchor stores a world position and orientation for user-created sign meshes.
 export const SIGN_ANCHORS=[
  {p:[0,3.1,21.4],r:[0,Math.PI,0]},{p:[-3.4,2.3,21.4],r:[0,Math.PI,0]},{p:[3.4,2.3,21.4],r:[0,Math.PI,0]},
@@ -17,7 +20,7 @@ export function signTexture(text,color){
  x.shadowBlur=0;x.fillStyle='#ffffff';x.globalAlpha=.88;x.fillText(text,512,116);
  const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;return t;
 }
-export function makeSignMesh(text,color,w=2.6,h=0.56){
+export function makeSignMesh(text,color,w=2.6*SIGN_SCALE,h=0.56*SIGN_SCALE){
  // fog:false is required, not cosmetic — the signs sit on the back wall ~21m away, and exponential
  // fog at the alley's smoke density would swallow them completely. Neon reads *through* the smoke.
  const m=new THREE.MeshBasicMaterial({map:signTexture(text,color),transparent:true,toneMapped:false,depthWrite:false,fog:false,side:THREE.DoubleSide});
@@ -26,14 +29,14 @@ export function makeSignMesh(text,color,w=2.6,h=0.56){
 // Fixed signs are part of the alley set and do not appear in the editable sign list.
 export function buildFixedSigns(){
   [['L',-6.9,Math.PI/2],['R',6.9,-Math.PI/2]].forEach(([side,x,ry])=>{
-  const mesh=makeSignMesh("BOWLING",'#ff2bd6',7.4,1.0);
+  const mesh=makeSignMesh("BOWLING",'#ff2bd6',7.4*SIGN_SCALE,1.0*SIGN_SCALE);
   mesh.position.set(x,2.7,9.5);mesh.rotation.y=ry;Scene.scene.add(mesh);
   const fm=neonMat('#ff2bd6','s');
-  const top=new THREE.Mesh(new THREE.CylinderGeometry(0.014,0.014,7.6,8),fm);
+  const top=new THREE.Mesh(new THREE.CylinderGeometry(0.014,0.014,7.6*SIGN_SCALE,8),fm);
   top.rotation.x=Math.PI/2;top.position.set(x+(side==='L'?0.02:-0.02),3.28,9.5);Scene.scene.add(top);
   const bot=top.clone();bot.position.y=2.14;Scene.scene.add(bot);});
  [['L',-6.9,Math.PI/2],['R',6.9,-Math.PI/2]].forEach(([side,x,ry])=>{
-  const mesh=makeSignMesh('BOWLING','#00eaff',3.2,0.6);
+  const mesh=makeSignMesh('BOWLING','#00eaff',3.2*SIGN_SCALE,0.6*SIGN_SCALE);
    mesh.position.set(x,1.5,1.2);mesh.rotation.y=ry;Scene.scene.add(mesh);});
 }
 // Rebuild editable signs after text, color, animation, or anchor changes.
