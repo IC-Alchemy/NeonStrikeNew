@@ -1,5 +1,4 @@
 import {$} from '../core/helpers.js';
-import {resetBallCount} from './wallet.js';
 
 /* ================= game state / scoring ================= */
 // The Game object centralizes every value that used to be a reassigned top-level `let`
@@ -100,6 +99,5 @@ export function decideAction(cur,knocked){
 export function gameOver(){
  Game.done=true;updateHUD();
  const cum=cumulative();$('#finalScore').textContent=cum[9]??0;
- resetBallCount();
  $('#over').classList.remove('hidden');$('#hud').classList.add('hidden');Game.state='over';
 }

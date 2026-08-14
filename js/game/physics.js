@@ -11,13 +11,14 @@ import {burstParticles} from '../fx/particles.js';
 import {launchConfetti} from '../fx/confetti.js';
 import {launchFireworks} from '../fx/fireworks.js';
 import {Game, buildScorebar, updateHUD, showBanner, decideAction, gameOver} from './state.js';
-import {awardCoins, COIN_STRIKE, COIN_SPARE} from './wallet.js';
+import {awardCoins, resetBallCount, COIN_STRIKE, COIN_SPARE} from './wallet.js';
 
 /* ================= game state / scoring (entity-touching half) ================= */
 // resetGame()/resetBallToStart() were moved here from game/state.js because they need
 // fullRack()/Ball/ballPhys/AU — see the note at the top of game/state.js for why.
 // Start a fresh match, restore the rack, and expose the aiming state to the HUD.
 export function resetGame(mode){
+ if(Game.done||Game.state==='over')resetBallCount();
  Game.mode=mode;Game.frame=0;Game.thr=0;Game.frames=Array.from({length:10},()=>[]);Game.done=false;Game.total=0;
  // Aim/position are cleared before resetBallToStart() so the multiball formation is laid out
  // around the fresh start x rather than the previous game's.
