@@ -34,6 +34,5 @@ export function buyBalls(){
 }
 // Purchased balls are temporary upgrades for one game and reset when a new game starts.
 export function resetBallCount(){
- if(CFG.wallet.balls===1)return 1;
  CFG.wallet.balls=1;save();emit(0);return 1;
 }
